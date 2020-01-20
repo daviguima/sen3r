@@ -13,7 +13,7 @@ import os
 copernicus = 'https://scihub.copernicus.eu/dhus'
 eumetsat = 'https://coda.eumetsat.int'
 
-# url = eumetsat
+# url = eumetsat # WFR
 
 if 'url' in globals():
     print(f'URL set to {url}')
@@ -33,11 +33,15 @@ JSON = 'd:\/git-repos\/s3-frbr\/amz_manacapuru.json'
 # search by polygon, time, and SciHub query keywords
 footprint = geojson_to_wkt(read_geojson(JSON))
 products = api.query(
-    footprint,
+    # footprint,
+    # area='intersects(POINT (-3.3269005247809025, -60.570201873779304))',
     date=('20190101', date(2019, 1, 31)),
     # platformname='Sentinel-3'
-    filename='S3?_OL_2_?FR???*'
+    producttype='OL_2_LFR___',
+    # filename='S3?_OL_2_?FR*',
     # cloudcoverpercentage=(0, 30)
+    timeliness='Non Time Critical',
+    query="'footprint': 'POLYGON ((34.322010 0.401648,36.540989 0.876987,36.884121 -0.747357,34.664474 -1.227940,34.322010 0.401648))',"
 )
 
 #%%
@@ -94,10 +98,10 @@ os.system('echo ')
 
 #%%
 
-for i, result in enumerate(queries):
-    file_name = products_df.iloc[i]['identifier']
-    os.system(f'echo attempting to download image {i+1}/{total}... {file_name}')
-    os.system('echo ')
-    os.system(result)
+# for i, result in enumerate(queries):
+#     file_name = products_df.iloc[i]['identifier']
+#     os.system(f'echo attempting to download image {i+1}/{total}... {file_name}')
+#     os.system('echo ')
+#     os.system(result)
     
     
