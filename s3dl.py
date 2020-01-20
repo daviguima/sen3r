@@ -1,27 +1,46 @@
 # connect to the API
 # https://sentinelsat.readthedocs.io/en/stable/api.html
 
+#%%
+
 from decouple import config
 from sentinelsat import SentinelAPI, read_geojson, geojson_to_wkt
 from datetime import date
 import os
 
-user = config('USER', default='guest')
-password = config('PASS', default='')
-urlSci = 'https://scihub.copernicus.eu/dhus'
-urlCoda = 'https://coda.eumetsat.int'
-api = SentinelAPI(user, password, urlCoda)
+#%%
+
+copernicus = 'https://scihub.copernicus.eu/dhus'
+eumetsat = 'https://coda.eumetsat.int'
+
+# url = eumetsat
+
+if 'url' in globals():
+    print(f'URL set to {url}')
+    user = config('EUM_USER', default='guest')
+    password = config('EUM_PASS', default='')
+    api = SentinelAPI(user, password, url)
+else:
+    print(f'Variable \'URL\' not set. Using default path: {copernicus}')
+    user = config('COP_USER', default='guest')
+    password = config('COP_PASS', default='')
+    api = SentinelAPI(user, password)
+    
 JSON = 'd:\/git-repos\/s3-frbr\/amz_manacapuru.json'
+
+#%%
 
 # search by polygon, time, and SciHub query keywords
 footprint = geojson_to_wkt(read_geojson(JSON))
 products = api.query(
     footprint,
-    date=('20200101', date(2020, 1, 16)),
+    date=('20190101', date(2019, 1, 31)),
     # platformname='Sentinel-3'
     filename='S3?_OL_2_?FR???*'
     # cloudcoverpercentage=(0, 30)
 )
+
+#%%
 
 # convert query result to Pandas DataFrame
 products_df = api.to_dataframe(products)
@@ -34,24 +53,51 @@ products_df = api.to_dataframe(products)
 # https://scihub.copernicus.eu/userguide/LongTermArchive
 # =============================================================================
 
-# private function to build dynamicaly the wget download query
-def _buildQuery(row):
+#%%
+
+# private function to build dynamicaly the wget download query for COAH/Copernicus
+# LFR
+def _buildQueryCopernicus(row):
+    uuid = row['uuid']
+    prod_name = row['identifier']
+    wget = f'D:\wget.exe -O S3\{prod_name}.zip --continue --no-check-certificate --user={user} --password={password} "https://scihub.copernicus.eu/apihub/odata/v1/Products(\'{uuid}\')/$value"'
+    return wget
+
+#%%
+
+# private function to build dynamicaly the wget download query for CODA/eumetsat
+# WFR
+def _buildQueryEumetsat(row):
     uuid = row['uuid']
     prod_name = row['identifier']
     wget = f'D:\wget.exe -O S3\{prod_name}.zip --no-check-certificate --user={user} --password={password} "http://coda.eumetsat.int/odata/v1/Products(\'{uuid}\')/$value"'
     return wget
       
+#%%
+
 # iterate over products dataframe rows, building the download query
-queries = products_df.apply(_buildQuery, axis=1)
+if 'url' in globals():
+    queries = products_df.apply(_buildQueryEumetsat, axis=1)
+else:
+    queries = products_df.apply(_buildQueryCopernicus, axis=1)
+
+#%%
 
 total = queries.shape[0]
+
+#%%
 
 os.system(f'echo =========================')
 os.system(f'echo total number of files: {total}\n')
 os.system(f'echo =========================')
 os.system('echo ')
+
+#%%
+
 for i, result in enumerate(queries):
     file_name = products_df.iloc[i]['identifier']
     os.system(f'echo attempting to download image {i+1}/{total}... {file_name}')
     os.system('echo ')
     os.system(result)
+    
+    
