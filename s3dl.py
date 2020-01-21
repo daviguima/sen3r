@@ -34,14 +34,13 @@ JSON = 'd:\/git-repos\/s3-frbr\/amz_manacapuru.json'
 footprint = geojson_to_wkt(read_geojson(JSON))
 products = api.query(
     # footprint,
-    # area='intersects(POINT (-3.3269005247809025, -60.570201873779304))',
-    date=('20190101', date(2019, 1, 31)),
-    # platformname='Sentinel-3'
-    producttype='OL_2_LFR___',
-    # filename='S3?_OL_2_?FR*',
+    date=('20190801', date(2019, 8, 31)),
+    # platformname='Sentinel-3',
+    # producttype='OL_2_LFR___',
+    filename='S3?_OL_2_?FR*',
     # cloudcoverpercentage=(0, 30)
-    timeliness='Non Time Critical',
-    query="'footprint': 'POLYGON ((34.322010 0.401648,36.540989 0.876987,36.884121 -0.747357,34.664474 -1.227940,34.322010 0.401648))',"
+    # timeliness='Non Time Critical',
+    raw='footprint:"Intersects(POLYGON((-60.58496475219726 -3.3432664216192993, -60.549087524414055 -3.3432664216192993, -60.549087524414055 -3.3107057310886976, -60.58496475219726 -3.3107057310886976, -60.58496475219726 -3.3432664216192993)))"'
 )
 
 #%%
