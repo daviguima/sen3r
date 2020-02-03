@@ -1,7 +1,8 @@
+import os
 import datetime as dt  # Python standard library datetime  module
 import numpy as np
-from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 import matplotlib.pyplot as plt
+from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 from mpl_toolkits.basemap import Basemap, addcyclic, shiftgrid
 
 
@@ -79,38 +80,75 @@ class NcExplorer:
                     print_ncattr(var)
         return nc_attrs, nc_dims, nc_vars
 
+    @staticmethod
+    def _temp():
+        # folder = 'D:\S3\LV2_LFR\S3A_OL_2_LFR____20190830T140112_20190830T140412_20190831T185237_0179_048_338_3060_LN1_O_NT_002.SEN3'
+        folder = 'D:\processing\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3'
+        band = '\Oa21_radiance.nc'
+
+        coords = '\\geo_coordinates.nc'
+
+        nc_fid = Dataset(folder + band, 'r')
+        band_n = nc_fid.variables['Oa21_radiance'][:]
+
+        nc_coord = Dataset(folder + coords, 'r')
+        lat = nc_coord.variables['latitude'][:]
+        lon = nc_coord.variables['longitude'][:]
+
+        print(folder + '\n' + band + '\n')
+        nc_attrs, nc_dims, nc_vars = explorer.ncdump(nc_fid)
+        print('+++++++++++++++++++++++++++++++++++')
+
+        print(folder + '\n' + coords + '\n')
+        nc_attrs, nc_dims, nc_vars = explorer.ncdump(nc_coord)
+        print('+++++++++++++++++++++++++++++++++++')
+
+        nc_fid.close()
+        nc_coord.close()
+
+        # Miller projection:
+        m = Basemap(projection='mill',
+                    lat_ts=10,
+                    llcrnrlon=lon.min(),
+                    urcrnrlon=lon.max(),
+                    llcrnrlat=lat.min(),
+                    urcrnrlat=lat.max(),
+                    resolution='c')
+
+        # BR bbox
+        # m = Basemap(projection='mill',
+        #             llcrnrlat=-60,
+        #             llcrnrlon=-90,
+        #             urcrnrlat=20,
+        #             urcrnrlon=-25)
+
+        x, y = m(lon, lat)
+        #
+        m.pcolormesh(x, y, band_n, shading='flat', cmap=plt.cm.jet)
+        m.colorbar(location='right')
+
+        lon, lat = -60.014493, -3.158980  # Manaus
+        xpt, ypt = m(lon, lat)
+        m.plot(xpt, ypt, 'rD')  # https://matplotlib.org/api/_as_gen/matplotlib.pyplot.plot.html
+
+        m.drawcoastlines()
+
+        plt.show()
+
+        plt.figure()
+
+        return print('dont use this.')
+
+
 
 if __name__ == "__main__":
     print("hello s3-frbr:nc_explorer!")
     explorer = NcExplorer()
-    folder = 'D:\processing\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3'
-    band = '\Oa08_radiance.nc'
-    coords = '\\tie_geo_coordinates.nc'
 
-    nc_fid = Dataset(folder+band, 'r')
-    radiance_b8 = nc_fid.variables['Oa08_radiance'][:]
+    work_dir = 'D:\processing\\'
 
-    nc_coord = Dataset(folder + coords, 'r')
-    lat = nc_coord.variables['latitude'][:]
-    lon = nc_coord.variables['longitude'][:]
+    file_name = work_dir + 'S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3'
 
-    print(folder + '\n' + band + '\n')
-    nc_attrs, nc_dims, nc_vars = explorer.ncdump(nc_fid)
-    print('+++++++++++++++++++++++++++++++++++')
-
-    print(folder + '\n' + coords + '\n')
-    nc_attrs, nc_dims, nc_vars = explorer.ncdump(nc_coord)
-    print('+++++++++++++++++++++++++++++++++++')
-
-    m = Basemap(projection='merc',
-                llcrnrlat=-80, urcrnrlat=-60,
-                llcrnrlon=10, urcrnrlon=-10,
-                lat_ts=20, resolution='c')
-    m.drawcoastlines()
-    m.fillcontinents(color='coral', lake_color='aqua')
-    # draw parallels and meridians.
-    m.drawparallels(np.arange(-90., 91., 30.))
-    m.drawmeridians(np.arange(-180., 181., 60.))
-    m.drawmapboundary(fill_color='aqua')
-    plt.title("Mercator Projection")
-    plt.show()
+    # retrieve all files in folder
+    files = os.listdir(file_name)
+    print(files)
