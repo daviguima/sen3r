@@ -106,6 +106,8 @@ class NcExplorer:
         nc_fid.close()
         nc_coord.close()
 
+    @staticmethod
+    def _plot(lat, lon, plot_var):
         # Miller projection:
         m = Basemap(projection='mill',
                     lat_ts=10,
@@ -123,32 +125,52 @@ class NcExplorer:
         #             urcrnrlon=-25)
 
         x, y = m(lon, lat)
-        #
-        m.pcolormesh(x, y, band_n, shading='flat', cmap=plt.cm.jet)
+
+        m.pcolormesh(x, y, plot_var, shading='flat', cmap=plt.cm.jet)
         m.colorbar(location='right')
 
         lon, lat = -60.014493, -3.158980  # Manaus
         xpt, ypt = m(lon, lat)
         m.plot(xpt, ypt, 'rD')  # https://matplotlib.org/api/_as_gen/matplotlib.pyplot.plot.html
-
         m.drawcoastlines()
-
         plt.show()
-
         plt.figure()
-
-        return print('dont use this.')
-
 
 
 if __name__ == "__main__":
     print("hello s3-frbr:nc_explorer!")
     explorer = NcExplorer()
-
     work_dir = 'D:\processing\\'
-
     file_name = work_dir + 'S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3'
-
     # retrieve all files in folder
     files = os.listdir(file_name)
+    print('All files:\n')
     print(files)
+
+    # extract LAT LON from NetCDF
+    # coords = '\\geo_coordinates.nc'
+    # nc_coord = Dataset(file_name + coords, 'r')
+    # lat = nc_coord.variables['latitude'][:]
+    # lon = nc_coord.variables['longitude'][:]
+
+    def _extract_band(full_nc_path):
+        print('extracting values from file:\n'+full_nc_path)
+        # nc_file = Dataset(full_nc_path, 'r')
+        bname = full_nc_path.split('\\')
+        # extrated_band = nc_file.variables[bname[-1].split('.')[0]][:]
+        print(bname)
+        # return extrated_band
+
+    # test for files ended in ".nc"
+    nc_files = [f for f in files if f.endswith('.nc')]
+    nc_bands = [b for b in nc_files if b.startswith('Oa')]
+    print('All NetCDF files:\n')
+    print(nc_files, end='\n\n')
+
+    print('All bands files:\n')
+    print(nc_bands, end='\n\n')
+
+    for i in nc_bands:
+        _extract_band(file_name + '\\' + nc_bands[0])
+
+
