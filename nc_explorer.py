@@ -142,10 +142,9 @@ if __name__ == "__main__":
     explorer = NcExplorer()
     work_dir = 'D:\processing\\'
     file_name = work_dir + 'S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3'
+
     # retrieve all files in folder
     files = os.listdir(file_name)
-    print('All files:\n')
-    print(files)
 
     # extract LAT LON from NetCDF
     # coords = '\\geo_coordinates.nc'
@@ -153,24 +152,18 @@ if __name__ == "__main__":
     # lat = nc_coord.variables['latitude'][:]
     # lon = nc_coord.variables['longitude'][:]
 
-    def _extract_band(full_nc_path):
-        print('extracting values from file:\n'+full_nc_path)
+    def _extract_band_data(full_nc_path):
         # nc_file = Dataset(full_nc_path, 'r')
         bname = full_nc_path.split('\\')
-        # extrated_band = nc_file.variables[bname[-1].split('.')[0]][:]
+        bname = bname[-1].split('.')[0]
+        # extrated_band = nc_file.variables[][:]
         print(bname)
         # return extrated_band
 
-    # test for files ended in ".nc"
     nc_files = [f for f in files if f.endswith('.nc')]
     nc_bands = [b for b in nc_files if b.startswith('Oa')]
-    print('All NetCDF files:\n')
-    print(nc_files, end='\n\n')
 
-    print('All bands files:\n')
-    print(nc_bands, end='\n\n')
-
-    for i in nc_bands:
-        _extract_band(file_name + '\\' + nc_bands[0])
+    for x, i in enumerate(nc_bands):
+        _extract_band_data(file_name + '\\' + nc_bands[x])
 
 
