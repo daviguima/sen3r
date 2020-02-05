@@ -1,9 +1,12 @@
 import os
+import xarray as xr
 import datetime as dt  # Python standard library datetime  module
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 from mpl_toolkits.basemap import Basemap, addcyclic, shiftgrid
+from sympy.solvers.diophantine import length
 
 
 class NcExplorer:
@@ -147,23 +150,35 @@ if __name__ == "__main__":
     files = os.listdir(file_name)
 
     # extract LAT LON from NetCDF
-    # coords = '\\geo_coordinates.nc'
-    # nc_coord = Dataset(file_name + coords, 'r')
-    # lat = nc_coord.variables['latitude'][:]
-    # lon = nc_coord.variables['longitude'][:]
+    coords = '\\geo_coordinates.nc'
+    nc_coord = Dataset(file_name + coords, 'r')
+    ds = xr.open_dataset(file_name + coords)
+    lat = nc_coord.variables['latitude'][:]
+    lat = lat.data
+    lon = nc_coord.variables['longitude'][:]
+    lon = lon.data
+
 
     def _extract_band_data(full_nc_path):
-        # nc_file = Dataset(full_nc_path, 'r')
+        nc_file = Dataset(full_nc_path, 'r')
         bname = full_nc_path.split('\\')
         bname = bname[-1].split('.')[0]
-        # extrated_band = nc_file.variables[][:]
-        print(bname)
-        # return extrated_band
+        extrated_band = nc_file.variables[bname][:]
+        return bname, extrated_band
 
+    # extract only NetCDFs from the file list
     nc_files = [f for f in files if f.endswith('.nc')]
+    # extract only the radiometric bands from the NetCDF list
     nc_bands = [b for b in nc_files if b.startswith('Oa')]
 
-    for x, i in enumerate(nc_bands):
-        _extract_band_data(file_name + '\\' + nc_bands[x])
+    # bands = {}
+    # total = len(nc_bands)
+    # for x, i in enumerate(nc_bands):
+    #     print(f'extracting band: {nc_bands[x]} -- {x+1} of {total}')
+    #     band_name, df = _extract_band_data(file_name + '\\' + nc_bands[x])
+    #     bands[band_name] = df
+
+    # Where is Manaus in the lat lon netcdf matrix?
+    query_lat, query_lon = -3.158980, -60.014493
 
 
