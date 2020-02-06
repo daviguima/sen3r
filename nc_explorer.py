@@ -17,6 +17,19 @@ class NcExplorer:
         self.inputnc = input_nc_data
 
     @staticmethod
+    def extract_band_data(full_nc_path):
+        '''
+        Assumes the NetCDF file to be a Sentinel-3 band file, like the one below:
+        D:\S3\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3\Oa01_radiance.nc
+        '''
+        nc_file = Dataset(full_nc_path, 'r')
+        bname = full_nc_path.split('\\')
+        bname = bname[-1].split('.')[0]
+        extrated_band = nc_file.variables[bname][:]
+        nc_file.close() # it is good practice to close the netcdf after using it (:
+        return bname, extrated_band
+
+    @staticmethod
     def ncdump(nc_fid, verb=True):
         # ported from py2.7 to py3 from:
         # http://schubert.atmos.colostate.edu/~cslocum/netcdf_example.html#code
@@ -85,32 +98,10 @@ class NcExplorer:
 
     @staticmethod
     def _temp():
-        # folder = 'D:\S3\LV2_LFR\S3A_OL_2_LFR____20190830T140112_20190830T140412_20190831T185237_0179_048_338_3060_LN1_O_NT_002.SEN3'
-        folder = 'D:\processing\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3'
-        band = '\Oa21_radiance.nc'
-
-        coords = '\\geo_coordinates.nc'
-
-        nc_fid = Dataset(folder + band, 'r')
-        band_n = nc_fid.variables['Oa21_radiance'][:]
-
-        nc_coord = Dataset(folder + coords, 'r')
-        lat = nc_coord.variables['latitude'][:]
-        lon = nc_coord.variables['longitude'][:]
-
-        print(folder + '\n' + band + '\n')
-        nc_attrs, nc_dims, nc_vars = explorer.ncdump(nc_fid)
-        print('+++++++++++++++++++++++++++++++++++')
-
-        print(folder + '\n' + coords + '\n')
-        nc_attrs, nc_dims, nc_vars = explorer.ncdump(nc_coord)
-        print('+++++++++++++++++++++++++++++++++++')
-
-        nc_fid.close()
-        nc_coord.close()
+        print('temp')
 
     @staticmethod
-    def _plot(lat, lon, plot_var):
+    def _temp_plot(lon, lat, plot_var, roi_lon=None, roi_lat=None):
         # Miller projection:
         m = Basemap(projection='mill',
                     lat_ts=10,
@@ -128,21 +119,50 @@ class NcExplorer:
         #             urcrnrlon=-25)
 
         x, y = m(lon, lat)
+        # x, y = m(lon, lat, inverse=True)
 
         m.pcolormesh(x, y, plot_var, shading='flat', cmap=plt.cm.jet)
-        m.colorbar(location='right')
+        m.colorbar(location='right')  # ('top','bottom','left','right')
 
-        lon, lat = -60.014493, -3.158980  # Manaus
-        xpt, ypt = m(lon, lat)
+        # dd_lon, dd_lat = -60.014493, -3.158980  # Manaus
+        # if roi_lon is not None and roi_lat is not None:
+        xpt, ypt = m(roi_lon, roi_lat)
         m.plot(xpt, ypt, 'rD')  # https://matplotlib.org/api/_as_gen/matplotlib.pyplot.plot.html
-        m.drawcoastlines()
+        # m.drawcoastlines()
         plt.show()
-        plt.figure()
+        # plt.figure()
 
+    @staticmethod
+    def get_radiance_in_bands(bands_dictionary, lon=None, lat=None, target_lon=None, target_lat=None):
+
+        # [pos for pos, x in np.ndenumerate(np.array(lat)) if x == -0.21162]
+
+        x_lon, y_lon = np.unravel_index((np.abs(lon - target_lon)).argmin(), lon.shape)
+        x_lat, y_lat = np.unravel_index((np.abs(lat - target_lat)).argmin(), lat.shape)
+
+        print(f'x_lon:{x_lon} y_lon:{y_lon} \n'
+              f'x_lat:{x_lat} y_lat:{y_lat}')
+
+        relative_lat = y_lon + int((y_lat - y_lon) / 2)
+        relative_lon = x_lat + int((x_lon - x_lat) / 2)
+
+        print(f'relative Lon:{relative_lon} Lat:{relative_lat}')
+
+        rad_in_bands = []
+        for b in bands_dictionary:
+            rad = bands_dictionary[b][relative_lon, relative_lat]
+            rad_in_bands.append(rad)
+
+        return rad_in_bands
+
+    @staticmethod
+    def plot_radiances(radiance_list):
+        plt.plot(radiance_list)
+        plt.show()
 
 if __name__ == "__main__":
     print("hello s3-frbr:nc_explorer!")
-    explorer = NcExplorer()
+    exp = NcExplorer()
     work_dir = 'D:\processing\\'
     file_name = work_dir + 'S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3'
 
@@ -152,33 +172,32 @@ if __name__ == "__main__":
     # extract LAT LON from NetCDF
     coords = '\\geo_coordinates.nc'
     nc_coord = Dataset(file_name + coords, 'r')
-    ds = xr.open_dataset(file_name + coords)
+    # ds = xr.open_dataset(file_name + coords) # needs improving
     lat = nc_coord.variables['latitude'][:]
     lat = lat.data
     lon = nc_coord.variables['longitude'][:]
     lon = lon.data
-
-
-    def _extract_band_data(full_nc_path):
-        nc_file = Dataset(full_nc_path, 'r')
-        bname = full_nc_path.split('\\')
-        bname = bname[-1].split('.')[0]
-        extrated_band = nc_file.variables[bname][:]
-        return bname, extrated_band
 
     # extract only NetCDFs from the file list
     nc_files = [f for f in files if f.endswith('.nc')]
     # extract only the radiometric bands from the NetCDF list
     nc_bands = [b for b in nc_files if b.startswith('Oa')]
 
-    # bands = {}
-    # total = len(nc_bands)
-    # for x, i in enumerate(nc_bands):
-    #     print(f'extracting band: {nc_bands[x]} -- {x+1} of {total}')
-    #     band_name, df = _extract_band_data(file_name + '\\' + nc_bands[x])
-    #     bands[band_name] = df
+    bands = {}
+    total = len(nc_bands)
+    for x, i in enumerate(nc_bands):
+        print(f'extracting band: {nc_bands[x]} -- {x+1} of {total}')
+        band_name, df = exp.extract_band_data(file_name + '\\' + nc_bands[x])
+        # df = df.data
+        bands[band_name] = df
 
     # Where is Manaus in the lat lon netcdf matrix?
-    query_lat, query_lon = -3.158980, -60.014493
+    query_lon, query_lat = -60.014493, -3.158980
 
+    # exp._temp_plot(lon, lat, df, query_lon, query_lat)
+
+    band_radiances = exp.get_radiance_in_bands(bands, lon, lat, query_lon, query_lat)
+
+    plt.plot(band_radiances)
+    plt.show()
 
