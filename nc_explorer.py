@@ -135,25 +135,32 @@ class NcExplorer:
     @staticmethod
     def get_radiance_in_bands(bands_dictionary, lon=None, lat=None, target_lon=None, target_lat=None):
 
-        # [pos for pos, x in np.ndenumerate(np.array(lat)) if x == -0.21162]
+        # # [pos for pos, x in np.ndenumerate(np.array(lat)) if x == -0.21162]
+        # x_lon, y_lon = np.unravel_index((np.abs(lon - target_lon)).argmin(), lon.shape)
+        # x_lat, y_lat = np.unravel_index((np.abs(lat - target_lat)).argmin(), lat.shape)
+        # print(f'x_lon:{x_lon} y_lon:{y_lon} \n'
+        #       f'x_lat:{x_lat} y_lat:{y_lat}')
+        #
+        # relative_lat = y_lon + int((y_lat - y_lon) / 2)
+        # relative_lon = x_lat + int((x_lon - x_lat) / 2)
 
-        x_lon, y_lon = np.unravel_index((np.abs(lon - target_lon)).argmin(), lon.shape)
-        x_lat, y_lat = np.unravel_index((np.abs(lat - target_lat)).argmin(), lat.shape)
-
-        print(f'x_lon:{x_lon} y_lon:{y_lon} \n'
-              f'x_lat:{x_lat} y_lat:{y_lat}')
-
-        relative_lat = y_lon + int((y_lat - y_lon) / 2)
-        relative_lon = x_lat + int((x_lon - x_lat) / 2)
-
-        print(f'relative Lon:{relative_lon} Lat:{relative_lat}')
+        # Mauricio's multidimensional wichcraft
+        lat = lat[:, :, np.newaxis]
+        lon = lon[:, :, np.newaxis]
+        grid = np.concatenate([lat, lon], axis=2)
+        vector = np.array([target_lat, target_lon]).reshape(1, 1, -1)
+        subtraction = vector - grid
+        dist = np.linalg.norm(subtraction, axis=2)
+        result = np.where(dist == dist.min())
+        target_x_y = result[0][0], result[1][0]
 
         rad_in_bands = []
         for b in bands_dictionary:
-            rad = bands_dictionary[b][relative_lon, relative_lat]
+            rad = bands_dictionary[b][target_x_y]
             rad_in_bands.append(rad)
 
-        return rad_in_bands
+        return target_x_y, rad_in_bands
+
 
     @staticmethod
     def plot_radiances(radiance_list):
@@ -196,8 +203,29 @@ if __name__ == "__main__":
 
     # exp._temp_plot(lon, lat, df, query_lon, query_lat)
 
-    band_radiances = exp.get_radiance_in_bands(bands, lon, lat, query_lon, query_lat)
+    mat_x_y, band_radiances = exp.get_radiance_in_bands(bands, lon, lat, query_lon, query_lat)
 
-    plt.plot(band_radiances)
+    s3_bands = {'Oa1':  400,
+                'Oa2':  412.5,
+                'Oa3':  442.5,
+                'Oa4':  490,
+                'Oa5':  510,
+                'Oa6':  560,
+                'Oa7':  620,
+                'Oa8':  665,
+                'Oa9':  673.75,
+                'Oa10': 681.25,
+                'Oa11': 708.75,
+                'Oa12': 753.75,
+                'Oa13': 761.25,
+                'Oa14': 764.375,
+                'Oa15': 767.5,
+                'Oa16': 778.75,
+                'Oa17': 865,
+                'Oa18': 885,
+                'Oa19': 900,
+                'Oa20': 940,
+                'Oa21': 1020}
+    plt.plot(band_radiances,s3_bands)
     plt.show()
 
