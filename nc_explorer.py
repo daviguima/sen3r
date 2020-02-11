@@ -4,8 +4,13 @@ import datetime as dt  # Python standard library datetime  module
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+
+import mpl_toolkits.axisartist as AA
+from mpl_toolkits.axes_grid1 import host_subplot
+
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 from mpl_toolkits.basemap import Basemap, addcyclic, shiftgrid
+
 from sympy.solvers.diophantine import length
 
 
@@ -171,8 +176,10 @@ if __name__ == "__main__":
     print("hello s3-frbr:nc_explorer!")
     exp = NcExplorer()
     work_dir = 'D:\processing\\'
-    file_name = work_dir + 'S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3'
-
+    # LV1
+    # file_name = work_dir + 'S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3'
+    # LV2 WFR
+    file_name = work_dir + 'S3A_OL_2_WFR____20190830T140112_20190830T140412_20190831T221607_0179_048_338_3060_MAR_O_NT_002.SEN3'
     # retrieve all files in folder
     files = os.listdir(file_name)
 
@@ -201,7 +208,7 @@ if __name__ == "__main__":
     # Where is Manaus in the lat lon netcdf matrix?
     query_lon, query_lat = -60.014493, -3.158980
 
-    # exp._temp_plot(lon, lat, df, query_lon, query_lat)
+    exp._temp_plot(lon, lat, df, query_lon, query_lat)
 
     mat_x_y, band_radiances = exp.get_radiance_in_bands(bands, lon, lat, query_lon, query_lat)
 
@@ -226,6 +233,62 @@ if __name__ == "__main__":
                 'Oa19': 900,
                 'Oa20': 940,
                 'Oa21': 1020}
-    plt.plot(band_radiances,s3_bands)
-    plt.show()
 
+    wfr_s3_bands = {'Oa1': 400,
+                    'Oa2': 412.5,
+                    'Oa3': 442.5,
+                    'Oa4': 490,
+                    'Oa5': 510,
+                    'Oa6': 560,
+                    'Oa7': 620,
+                    'Oa8': 665,
+                    'Oa9': 673.75,
+                    'Oa10': 681.25,
+                    'Oa11': 708.75,
+                    'Oa12': 753.75,
+                    'Oa16': 778.75,
+                    'Oa17': 865,
+                    'Oa18': 885,
+                    'Oa21': 1020}
+
+    ### L1B
+    # fig, ax1 = plt.subplots()
+    # ax1.set_xlabel('Wavelenght (nm)')
+    # ax1.set_ylabel('Radiance')
+    # ax1.plot(list(s3_bands.values()), band_radiances)
+    # ax1.set_xticks(list(s3_bands.values()))
+    # ax1.set_xticklabels(list(s3_bands.values()))
+    # ax1.tick_params(labelrotation=90, labelsize='small')
+    #
+    # ax2 = ax1.twiny()
+    # ax2.plot(np.linspace(min(list(s3_bands.values())),
+    #                      max(list(s3_bands.values())),
+    #                      num=len(s3_bands)), band_radiances, alpha=0.0)
+    # ax2.set_xticks(list(s3_bands.values()))
+    # ax2.set_xticklabels(list(s3_bands.keys()))
+    #
+    # ax2.tick_params(labelrotation=90, labelsize='xx-small')
+    # ax2.grid()
+    # # ax2.set_visible(False)
+    # plt.show()
+
+    ### L2 WFR
+    fig, ax1 = plt.subplots()
+    ax1.set_xlabel('Wavelenght (nm)')
+    ax1.set_ylabel('Reflectance')
+    ax1.plot(list(wfr_s3_bands.values()), band_radiances)
+    ax1.set_xticks(list(wfr_s3_bands.values()))
+    ax1.set_xticklabels(list(wfr_s3_bands.values()))
+    ax1.tick_params(labelrotation=90, labelsize='small')
+
+    ax2 = ax1.twiny()
+    ax2.plot(np.linspace(min(list(wfr_s3_bands.values())),
+                         max(list(wfr_s3_bands.values())),
+                         num=len(wfr_s3_bands)), band_radiances, alpha=0.0)
+    ax2.set_xticks(list(wfr_s3_bands.values()))
+    ax2.set_xticklabels(list(wfr_s3_bands.keys()))
+
+    ax2.tick_params(labelrotation=90, labelsize='xx-small')
+    ax2.grid()
+    # ax2.set_visible(False)
+    plt.show()
