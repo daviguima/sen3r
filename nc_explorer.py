@@ -143,9 +143,10 @@ class NcExplorer:
     @staticmethod
     def get_gdal_value_by_lon_lat(tif_file, lon, lat):
 
-        result = os.popen('gdallocationinfo -valonly -wgs84 %s %s' % (lyr, loc)).read()
+        result = os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' %
+                          (tif_file, lon, lat)).read()
         # https://gis.stackexchange.com/questions/118397/storing-result-from-gdallocationinfo-as-variable-in-python
-
+        return result
 
     @staticmethod
     def read_tiff_bands(file):
@@ -259,10 +260,10 @@ if __name__ == "__main__":
     work_dir = 'D:\processing\\'
 
     # LV1
-    file_name = work_dir + 'S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3'
+    # file_name = work_dir + 'S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3'
 
     # LV2 WFR
-    # file_name = work_dir + 'S3A_OL_2_WFR____20190830T140112_20190830T140412_20190831T221607_0179_048_338_3060_MAR_O_NT_002.SEN3'
+    file_name = work_dir + 'S3A_OL_2_WFR____20190830T140112_20190830T140412_20190831T221607_0179_048_338_3060_MAR_O_NT_002.SEN3'
 
     exp = NcExplorer(input_nc_folder=file_name)
 
@@ -287,12 +288,17 @@ if __name__ == "__main__":
     # Where is Manaus in the lat lon netcdf matrix?
     query_lon, query_lat = -60.014493, -3.158980
 
-    exp._temp_plot(lon, lat, df, query_lon, query_lat)
+    # exp._temp_plot(lon, lat, df, query_lon, query_lat)
 
     mat_x_y, band_radiances = exp.get_radiance_in_bands(bands, lon, lat, query_lon, query_lat)
-
+    #
     s3_bands_l1 = exp.s3_bands_l1
     s3_bands_l2 = exp.s3_bands_l2
+
+    file = 'C:\Temp\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002_iCOR.tif'
+    gdal_query_result = exp.get_gdal_value_by_lon_lat(file, query_lon, query_lat)
+
+    icor = [float(x) for x in gdal_query_result.split()]
 
     ### L1B
     # fig, ax1 = plt.subplots()
@@ -316,22 +322,29 @@ if __name__ == "__main__":
     # plt.show()
 
     ### L2 WFR
-    # fig, ax1 = plt.subplots()
-    # ax1.set_xlabel('Wavelenght (nm)')
-    # ax1.set_ylabel('Reflectance')
-    # ax1.plot(list(s3_bands_l2.values()), band_radiances)
-    # ax1.set_xticks(list(s3_bands_l2.values()))
-    # ax1.set_xticklabels(list(s3_bands_l2.values()))
-    # ax1.tick_params(labelrotation=90, labelsize='small')
-    #
-    # ax2 = ax1.twiny()
-    # ax2.plot(np.linspace(min(list(s3_bands_l2.values())),
-    #                      max(list(s3_bands_l2.values())),
-    #                      num=len(s3_bands_l2)), band_radiances, alpha=0.0)
-    # ax2.set_xticks(list(s3_bands_l2.values()))
-    # ax2.set_xticklabels(list(s3_bands_l2.keys()))
-    #
-    # ax2.tick_params(labelrotation=90, labelsize='xx-small')
-    # ax2.grid()
-    # # ax2.set_visible(False)
-    # plt.show()
+    fig, ax1 = plt.subplots()
+    ax1.set_xlabel('Wavelenght (nm)')
+    ax1.set_ylabel('Reflectance')
+    ax1.plot(list(s3_bands_l2.values()), icor, label='L1 iCOR', marker='o')
+    ax1.plot(list(s3_bands_l2.values()), band_radiances, label='L2 WFR', marker='o')
+    ax1.axhline(y=0, xmin=0, xmax=1, linewidth=0.5, color='black', linestyle='--')
+    ax1.set_xticks(list(s3_bands_l2.values()))
+    ax1.set_xticklabels(list(s3_bands_l2.values()))
+    ax1.tick_params(labelrotation=90, labelsize='small')
+
+    # ax1.set_yticklabels(labels=np.linspace(
+    #     ax1.get_yticks().min(), ax1.get_yticks().max(), len(ax1.get_yticks()) * 2),
+    #     rotation=0)
+
+    ax1.legend()
+
+    ax2 = ax1.twiny()
+    ax2.plot(np.linspace(min(list(s3_bands_l2.values())),
+                         max(list(s3_bands_l2.values())),
+                         num=len(s3_bands_l2)), band_radiances, alpha=0.0)
+    ax2.set_xticks(list(s3_bands_l2.values()))
+    ax2.set_xticklabels(list(s3_bands_l2.keys()))
+    ax2.tick_params(labelrotation=90, labelsize='xx-small')
+    ax2.grid()
+
+    plt.show()
