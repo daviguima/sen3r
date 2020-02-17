@@ -235,13 +235,36 @@ class NcExplorer:
 
         return target_x_y, rad_in_bands
 
+    def plot_s3_lv2_reflectances(self, radiance_list, icor, band_radiances, figure_title):
 
-    @staticmethod
-    def plot_radiances(radiance_list):
-        plt.plot(radiance_list)
+        ### L2 WFR
+        fig, ax1 = plt.subplots()
+        ax1.set_xlabel('Wavelenght (nm)')
+        ax1.set_ylabel('Reflectance')
+        ax1.set_title(figure_title, y=1, fontsize=16)
+        ax1.plot(list(self.s3_bands_l2.values()), icor, label='L1 iCOR', marker='o')
+        ax1.plot(list(self.s3_bands_l2.values()), band_radiances, label='L2 WFR', marker='o')
+        ax1.axhline(y=0, xmin=0, xmax=1, linewidth=0.5, color='black', linestyle='--')
+        ax1.set_xticks(list(self.s3_bands_l2.values()))
+        ax1.set_xticklabels(list(self.s3_bands_l2.values()))
+        ax1.tick_params(labelrotation=90, labelsize='small')
+        # ax1.set_yticklabels(labels=np.linspace(
+        #     ax1.get_yticks().min(), ax1.get_yticks().max(), len(ax1.get_yticks()) * 2),
+        #     rotation=0)
+        ax1.legend()
+        ax2 = ax1.twiny()
+        ax2.plot(np.linspace(min(list(self.s3_bands_l2.values())),
+                             max(list(self.s3_bands_l2.values())),
+                             num=len(self.s3_bands_l2)), band_radiances, alpha=0.0)
+        ax2.set_xticks(list(self.s3_bands_l2.values()))
+        ax2.set_xticklabels(list(self.s3_bands_l2.keys()))
+        ax2.tick_params(labelrotation=90, labelsize='xx-small')
+        ax2.set_title('Sentinel-3 Oa Bands', y=0.93, x=0.12, fontsize='xx-small')
+        # ax2.grid()
         plt.show()
 
-    def _get_lon_lat_from_nc(self, netcdf_files_folder=None):
+    @staticmethod
+    def _get_lon_lat_from_nc(netcdf_files_folder):
 
         # extract LAT LON from NetCDF
         # WINDOWS ONLY!!!
@@ -253,6 +276,11 @@ class NcExplorer:
         lon = nc_coord.variables['longitude'][:]
         lon = lon.data
         return lon, lat
+
+    def netcdf_get_radiance_in_lon_lat(self):
+        # TODO: traspose stuff inside __main__ to here
+        return None
+
 
 if __name__ == "__main__":
     print("hello s3-frbr:nc_explorer!")
@@ -291,15 +319,15 @@ if __name__ == "__main__":
     # exp._temp_plot(lon, lat, df, query_lon, query_lat)
 
     mat_x_y, band_radiances = exp.get_radiance_in_bands(bands, lon, lat, query_lon, query_lat)
-    #
-    s3_bands_l1 = exp.s3_bands_l1
-    s3_bands_l2 = exp.s3_bands_l2
 
     file = 'C:\Temp\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002_iCOR.tif'
     gdal_query_result = exp.get_gdal_value_by_lon_lat(file, query_lon, query_lat)
 
     icor = [float(x) for x in gdal_query_result.split()]
 
+    exp.plot_s3_lv2_reflectances(band_radiances=band_radiances,
+                                 icor=icor,
+                                 figure_title=f'Sentinel-3 reflectance in pixel lon:{query_lon} lat:{query_lat}')
     ### L1B
     # fig, ax1 = plt.subplots()
     # ax1.set_xlabel('Wavelenght (nm)')
@@ -321,30 +349,4 @@ if __name__ == "__main__":
     # # ax2.set_visible(False)
     # plt.show()
 
-    ### L2 WFR
-    fig, ax1 = plt.subplots()
-    ax1.set_xlabel('Wavelenght (nm)')
-    ax1.set_ylabel('Reflectance')
-    ax1.plot(list(s3_bands_l2.values()), icor, label='L1 iCOR', marker='o')
-    ax1.plot(list(s3_bands_l2.values()), band_radiances, label='L2 WFR', marker='o')
-    ax1.axhline(y=0, xmin=0, xmax=1, linewidth=0.5, color='black', linestyle='--')
-    ax1.set_xticks(list(s3_bands_l2.values()))
-    ax1.set_xticklabels(list(s3_bands_l2.values()))
-    ax1.tick_params(labelrotation=90, labelsize='small')
 
-    # ax1.set_yticklabels(labels=np.linspace(
-    #     ax1.get_yticks().min(), ax1.get_yticks().max(), len(ax1.get_yticks()) * 2),
-    #     rotation=0)
-
-    ax1.legend()
-
-    ax2 = ax1.twiny()
-    ax2.plot(np.linspace(min(list(s3_bands_l2.values())),
-                         max(list(s3_bands_l2.values())),
-                         num=len(s3_bands_l2)), band_radiances, alpha=0.0)
-    ax2.set_xticks(list(s3_bands_l2.values()))
-    ax2.set_xticklabels(list(s3_bands_l2.keys()))
-    ax2.tick_params(labelrotation=90, labelsize='xx-small')
-    ax2.grid()
-
-    plt.show()
