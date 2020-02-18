@@ -141,6 +141,12 @@ class NcExplorer:
         return nc_attrs, nc_dims, nc_vars
 
     @staticmethod
+    def gdal_kml_to_shp(input_kml_path):
+        output_shp = input_kml_path.split('.')[0]+'.shp'
+        os.popen('ogr2ogr -f "ESRI Shapefile" %s %s' % (output_shp, input_kml_path))
+        return output_shp
+
+    @staticmethod
     def get_gdal_value_by_lon_lat(tif_file, lon, lat):
 
         result = os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' %
@@ -298,36 +304,39 @@ if __name__ == "__main__":
     # retrieve all files in folder
     files = os.listdir(file_name)
 
-    lon, lat = exp._get_lon_lat_from_nc(file_name)
+    # lon, lat = exp._get_lon_lat_from_nc(file_name)
 
     # extract only NetCDFs from the file list
-    nc_files = [f for f in files if f.endswith('.nc')]
+    # nc_files = [f for f in files if f.endswith('.nc')]
     # extract only the radiometric bands from the NetCDF list
-    nc_bands = [b for b in nc_files if b.startswith('Oa')]
+    # nc_bands = [b for b in nc_files if b.startswith('Oa')]
 
-    bands = {}
-    total = len(nc_bands)
-    for x, i in enumerate(nc_bands):
-        print(f'extracting band: {nc_bands[x]} -- {x+1} of {total}')
-        band_name, df = exp.extract_band_data(file_name + '\\' + nc_bands[x])
-        # df = df.data
-        bands[band_name] = df
+    # bands = {}
+    # total = len(nc_bands)
+    # for x, i in enumerate(nc_bands):
+    #     print(f'extracting band: {nc_bands[x]} -- {x+1} of {total}')
+    #     band_name, df = exp.extract_band_data(file_name + '\\' + nc_bands[x])
+    #     # df = df.data
+    #     bands[band_name] = df
 
     # Where is Manaus in the lat lon netcdf matrix?
     query_lon, query_lat = -60.014493, -3.158980
 
     # exp._temp_plot(lon, lat, df, query_lon, query_lat)
 
-    mat_x_y, band_radiances = exp.get_radiance_in_bands(bands, lon, lat, query_lon, query_lat)
+    # mat_x_y, band_radiances = exp.get_radiance_in_bands(bands, lon, lat, query_lon, query_lat)
 
-    file = 'C:\Temp\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002_iCOR.tif'
-    gdal_query_result = exp.get_gdal_value_by_lon_lat(file, query_lon, query_lat)
+    # file = 'C:\Temp\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002_iCOR.tif'
+    # gdal_query_result = exp.get_gdal_value_by_lon_lat(file, query_lon, query_lat)
+    #
+    # icor = [float(x) for x in gdal_query_result.split()]
+    #
+    # exp.plot_s3_lv2_reflectances(band_radiances=band_radiances,
+    #                              icor=icor,
+    #                              figure_title=f'Sentinel-3 reflectance in pixel lon:{query_lon} lat:{query_lat}')
 
-    icor = [float(x) for x in gdal_query_result.split()]
+    shapefile_roi_mask = exp.gdal_kml_to_shp('D:\processing\\rio_solimoes.kml')
 
-    exp.plot_s3_lv2_reflectances(band_radiances=band_radiances,
-                                 icor=icor,
-                                 figure_title=f'Sentinel-3 reflectance in pixel lon:{query_lon} lat:{query_lat}')
     ### L1B
     # fig, ax1 = plt.subplots()
     # ax1.set_xlabel('Wavelenght (nm)')
