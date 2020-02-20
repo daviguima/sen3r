@@ -373,7 +373,7 @@ if __name__ == "__main__":
     bands = exp.extract_data_from_netcdf_bands(valid_nc_band_names)
 
     # Where is Manaus in the lat lon netcdf matrix?
-    query_lon, query_lat = -60.014493, -3.158980
+    # query_lon, query_lat = -60.014493, -3.158980
 
     # exp._temp_plot(lon, lat, df, query_lon, query_lat)
 
