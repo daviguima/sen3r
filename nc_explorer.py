@@ -1,4 +1,5 @@
 import os
+import utils
 import xarray as xr
 import datetime as dt  # Python standard library datetime  module
 import numpy as np
@@ -20,6 +21,8 @@ class NcExplorer:
     """
     def __init__(self, input_nc_folder=None):
         self.nc_folder = input_nc_folder
+
+    class_label = 'S3-FRBR:Nc_Explorer'
 
     s3_bands_l1 = {'Oa1': 400,
                    'Oa2': 412.5,
@@ -269,9 +272,10 @@ class NcExplorer:
         # ax2.grid()
         plt.show()
 
-    @staticmethod
-    def _get_lon_lat_from_nc(netcdf_files_folder):
-
+    def get_lon_lat_from_nc(self, netcdf_files_folder, verbose=False):
+        utils.tic()
+        if verbose:
+            print(f'{self.class_label} - extracting Lon/Lat dataframes from: \n{netcdf_files_folder}')
         # extract LAT LON from NetCDF
         # WINDOWS ONLY!!!
         coords_file = '\\geo_coordinates.nc'
@@ -281,6 +285,12 @@ class NcExplorer:
         lat = lat.data
         lon = nc_coord.variables['longitude'][:]
         lon = lon.data
+        t_hour, t_min, t_sec = utils.tac()
+        if verbose:
+            print(f'Longitude shape: {lon.shape}, size: {lon.size}')
+            print(f'Latitude shape: {lat.shape}, size: {lat.size}')
+            print(f'Done in {t_hour}h:{t_min}m:{t_sec}s')
+
         return lon, lat
 
     def netcdf_get_radiance_in_lon_lat(self):
@@ -289,7 +299,6 @@ class NcExplorer:
 
 
 if __name__ == "__main__":
-    print("hello s3-frbr:nc_explorer!")
 
     work_dir = 'D:\processing\\'
 
