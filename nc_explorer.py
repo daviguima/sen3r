@@ -1,4 +1,5 @@
 import os
+import sys
 import utils
 import xarray as xr
 import datetime as dt  # Python standard library datetime  module
@@ -19,10 +20,13 @@ class NcExplorer:
     """
     This class is intended to provide methods to manipulate NetCDF data from Sentinel-3
     """
-    def __init__(self, input_nc_folder=None):
+    def __init__(self, input_nc_folder=None, verbose=False):
         self.nc_folder = input_nc_folder
-
-    class_label = 'S3-FRBR:Nc_Explorer'
+        self.verbose = verbose
+        self.class_label = 'S3-FRBR:Nc_Explorer'
+        print(f'Declaring class instance from: {self.class_label}')
+        if self.verbose:
+            print(f'Verbose set to True.')
 
     s3_bands_l1 = {'Oa1': 400,
                    'Oa2': 412.5,
@@ -64,9 +68,9 @@ class NcExplorer:
                    'Oa21': 1020}
 
     @staticmethod
-    def extract_band_data(full_nc_path):
+    def _extract_band_data(full_nc_path):
         '''
-        Assumes the NetCDF file to be a Sentinel-3 band file, like the one below:
+        Assumes the NetCDF file to be a valid Sentinel-3 band file, like the one below:
         D:\S3\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3\Oa01_radiance.nc
         '''
         nc_file = Dataset(full_nc_path, 'r')
@@ -76,7 +80,7 @@ class NcExplorer:
         nc_file.close() # it is good practice to close the netcdf after using it (:
         return bname, extrated_band
 
-    @staticmethod
+    @staticmethod  # TODO: maybe move it to utils?
     def ncdump(nc_fid, verb=True):
         # ported from py2.7 to py3 from:
         # http://schubert.atmos.colostate.edu/~cslocum/netcdf_example.html#code
@@ -143,13 +147,13 @@ class NcExplorer:
                     print_ncattr(var)
         return nc_attrs, nc_dims, nc_vars
 
-    @staticmethod
+    @staticmethod  # TODO: shp and kml are not NetCDF, move it to elsewhere.
     def gdal_kml_to_shp(input_kml_path):
         output_shp = input_kml_path.split('.')[0]+'.shp'
         os.popen('ogr2ogr -f "ESRI Shapefile" %s %s' % (output_shp, input_kml_path))
         return output_shp
 
-    @staticmethod
+    @staticmethod  # TODO: express call from external tool for manipulation of Tiff does not belong in a NetCDF exploring class.
     def get_gdal_value_by_lon_lat(tif_file, lon, lat):
 
         result = os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' %
@@ -157,10 +161,9 @@ class NcExplorer:
         # https://gis.stackexchange.com/questions/118397/storing-result-from-gdallocationinfo-as-variable-in-python
         return result
 
-    @staticmethod
+    @staticmethod  # TODO: Tiff stuff should not be inside this class.
     def read_tiff_bands(file):
         from osgeo import gdal
-        import sys
 
         src_ds = gdal.Open(file)
         if src_ds is None:
@@ -182,8 +185,7 @@ class NcExplorer:
             print("[ STATS ] =  Minimum=%.3f, Maximum=%.3f, Mean=%.3f, StdDev=%.3f" %
                   (stats[0], stats[1], stats[2], stats[3]))
 
-
-    @staticmethod
+    @staticmethod  # TODO: as the name states, temp stuff either needs to be fixed, moved or removed.
     def _temp_plot(lon, lat, plot_var, roi_lon=None, roi_lat=None):
         # Miller projection:
         m = Basemap(projection='mill',
@@ -215,9 +217,39 @@ class NcExplorer:
         plt.show()
         # plt.figure()
 
-    @staticmethod
-    def get_radiance_in_bands(bands_dictionary, lon=None, lat=None, target_lon=None, target_lat=None):
+    def get_valid_band_files(self):
+        # TODO: write docstrings
+        if self.nc_folder is None:
+            print('Unable to find files if NetCDF image folder is not defined during NcExplorer class instance.')
+            sys.exit(1)
 
+        sentinel_images_path = self.nc_folder
+
+        # retrieve all files in folder
+        files = os.listdir(sentinel_images_path)
+
+        # extract only NetCDFs from the file list
+        nc_files = [f for f in files if f.endswith('.nc')]
+
+        # extract only the radiometric bands from the NetCDF list
+        nc_bands = [b for b in nc_files if b.startswith('Oa')]
+
+        if self.verbose:
+            print(f'{self.class_label}.get_valid_band_files()\n'
+                  f'Sentinel-3 Image folder:\n'
+                  f'{sentinel_images_path}\n'
+                  f'Total files in folder: {len(files)}\n'
+                  f'Total NetCDF files: {len(nc_files)}\n'
+                  f'Total S3 "Oa" bands: {len(nc_bands)}')
+
+        return nc_bands
+
+    def get_radiance_in_bands(self, bands_dictionary, lon=None, lat=None, target_lon=None, target_lat=None):
+        # TODO: write docstrings
+        if self.verbose:
+            print(f'{self.class_label}.get_radiance_in_bands()')
+
+        # TODO: this looks weird...
         # # [pos for pos, x in np.ndenumerate(np.array(lat)) if x == -0.21162]
         # x_lon, y_lon = np.unravel_index((np.abs(lon - target_lon)).argmin(), lon.shape)
         # x_lat, y_lat = np.unravel_index((np.abs(lat - target_lat)).argmin(), lat.shape)
@@ -232,7 +264,7 @@ class NcExplorer:
         lon = lon[:, :, np.newaxis]
         grid = np.concatenate([lat, lon], axis=2)
         vector = np.array([target_lat, target_lon]).reshape(1, 1, -1)
-        subtraction = vector - grid
+        subtraction = vector - grid  # TODO: study multidimensional vector subtraction
         dist = np.linalg.norm(subtraction, axis=2)
         result = np.where(dist == dist.min())
         target_x_y = result[0][0], result[1][0]
@@ -244,8 +276,9 @@ class NcExplorer:
 
         return target_x_y, rad_in_bands
 
+    # TODO: this is very specific, make it more generic.
     def plot_s3_lv2_reflectances(self, radiance_list, icor, band_radiances, figure_title):
-
+        # TODO: write docstrings
         ### L2 WFR
         fig, ax1 = plt.subplots()
         ax1.set_xlabel('Wavelenght (nm)')
@@ -272,10 +305,18 @@ class NcExplorer:
         # ax2.grid()
         plt.show()
 
-    def get_lon_lat_from_nc(self, netcdf_files_folder, verbose=False):
+    def get_lon_lat_from_nc(self):
+        # TODO: write docstrings
+        if self.nc_folder is None:
+            print('Unable to get Longitude and Latitude data if NetCDF image folder is not defined during NcExplorer class instance.')
+            sys.exit(1)
+
         utils.tic()
-        if verbose:
-            print(f'{self.class_label} - extracting Lon/Lat dataframes from: \n{netcdf_files_folder}')
+        netcdf_files_folder = self.nc_folder
+
+        if self.verbose:
+            print(f'{self.class_label}.get_lon_lat_from_nc()')
+            print(f'Extracting Lon/Lat dataframes from: \n{netcdf_files_folder}')
         # extract LAT LON from NetCDF
         # WINDOWS ONLY!!!
         coords_file = '\\geo_coordinates.nc'
@@ -286,47 +327,50 @@ class NcExplorer:
         lon = nc_coord.variables['longitude'][:]
         lon = lon.data
         t_hour, t_min, t_sec = utils.tac()
-        if verbose:
+        if self.verbose:
             print(f'Longitude shape: {lon.shape}, size: {lon.size}')
             print(f'Latitude shape: {lat.shape}, size: {lat.size}')
             print(f'Done in {t_hour}h:{t_min}m:{t_sec}s')
 
         return lon, lat
 
-    def netcdf_get_radiance_in_lon_lat(self):
-        # TODO: traspose stuff inside __main__ to here
-        return None
+    def extract_data_from_netcdf_bands(self, netcdf_valid_band_list):
+        # TODO: write docstrings
+        if self.nc_folder is None:
+            print('Unable to extract band data if NetCDF image folder is not defined during NcExplorer class instance.')
+            sys.exit(1)
+
+        utils.tic()
+        if self.verbose:
+            print(f'{self.class_label}.extract_data_from_netcdf_bands()')
+
+        nc_bands = netcdf_valid_band_list
+        bands = {}
+        total = len(nc_bands)
+        for x, i in enumerate(nc_bands):
+            if self.verbose:
+                print(f'extracting band: {nc_bands[x]} -- {x + 1} of {total}')
+            band_name, df = self._extract_band_data(self.nc_folder + '\\' + nc_bands[x])
+            bands[band_name] = df
+
+        t_hour, t_min, t_sec = utils.tac()
+        if self.verbose:
+            print(f'\nDone in {t_hour}h:{t_min}m:{t_sec}s')
+        return bands
 
 
 if __name__ == "__main__":
 
-    work_dir = 'D:\processing\\'
+    s3_netcdf_folder = 'D:\processing\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3'
 
-    # LV1
-    file_name = work_dir + 'S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3'
+    exp = NcExplorer(input_nc_folder=s3_netcdf_folder,
+                     verbose=True)
 
-    # LV2 WFR
-    # file_name = work_dir + 'S3A_OL_2_WFR____20190830T140112_20190830T140412_20190831T221607_0179_048_338_3060_MAR_O_NT_002.SEN3'
+    valid_nc_band_names = exp.get_valid_band_files()
 
-    exp = NcExplorer(input_nc_folder=file_name)
+    lon, lat = exp.get_lon_lat_from_nc()
 
-    # retrieve all files in folder
-    files = os.listdir(file_name)
-
-    lon, lat = exp._get_lon_lat_from_nc(file_name)
-
-    # extract only NetCDFs from the file list
-    nc_files = [f for f in files if f.endswith('.nc')]
-    # extract only the radiometric bands from the NetCDF list
-    nc_bands = [b for b in nc_files if b.startswith('Oa')]
-
-    bands = {}
-    total = len(nc_bands)
-    for x, i in enumerate(nc_bands):
-        print(f'extracting band: {nc_bands[x]} -- {x+1} of {total}')
-        band_name, df = exp.extract_band_data(file_name + '\\' + nc_bands[x])
-        # df = df.data
-        bands[band_name] = df
+    bands = exp.extract_data_from_netcdf_bands(valid_nc_band_names)
 
     # Where is Manaus in the lat lon netcdf matrix?
     query_lon, query_lat = -60.014493, -3.158980
