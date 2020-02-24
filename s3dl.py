@@ -34,12 +34,12 @@ JSON = 'd:\/git-repos\/s3-frbr\/amz_manacapuru.json'
 footprint = geojson_to_wkt(read_geojson(JSON))
 products = api.query(
     # footprint,
-    date=('20190801', date(2019, 8, 31)),
+    date=('20200216', date(2020, 2, 22)), # day + 1
     platformname='Sentinel-3',
     # producttype='OL_2_LFR___',
-    filename='S3?_OL_2_?FR*',
+    filename='S3?_OL_1_?FR*',
     # cloudcoverpercentage=(0, 30)
-    timeliness='Non Time Critical',
+    # timeliness='Non Time Critical',
     raw='footprint:"Intersects(POLYGON((-60.58496475219726 -3.3432664216192993, -60.549087524414055 -3.3432664216192993, -60.549087524414055 -3.3107057310886976, -60.58496475219726 -3.3107057310886976, -60.58496475219726 -3.3432664216192993)))"'
 )
 
@@ -95,15 +95,13 @@ total = queries.shape[0]
 
 os.system(f'echo =========================')
 os.system(f'echo total number of files: {total}\n')
-os.system(f'echo =========================')
-os.system('echo ')
+os.system(f'echo =========================\n\n')
 
 #%%
 
 for i, result in enumerate(queries):
     file_name = products_df.iloc[i]['identifier']
-    os.system(f'echo attempting to download image {i+1}/{total}... {file_name}')
-    os.system('echo ')
+    os.system(f'echo attempting to download image {i+1}/{total}... {file_name}\n')
     os.system(result)
     
     

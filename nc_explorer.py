@@ -244,7 +244,7 @@ class NcExplorer:
 
         return nc_bands
 
-    def get_radiance_in_bands(self, bands_dictionary, lon=None, lat=None, target_lon=None, target_lat=None):
+    def get_data_in_bands(self, bands_dictionary, lon=None, lat=None, target_lon=None, target_lat=None):
         # TODO: write docstrings
         if self.verbose:
             print(f'{self.class_label}.get_radiance_in_bands()')
@@ -377,7 +377,7 @@ if __name__ == "__main__":
 
     # exp._temp_plot(lon, lat, df, query_lon, query_lat)
 
-    mat_x_y, band_radiances = exp.get_radiance_in_bands(bands, lon, lat, query_lon, query_lat)
+    mat_x_y, band_radiances = exp.get_data_in_bands(bands, lon, lat, query_lon, query_lat)
 
     # file = 'C:\Temp\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002_iCOR.tif'
     # gdal_query_result = exp.get_gdal_value_by_lon_lat(file, query_lon, query_lat)
