@@ -102,6 +102,6 @@ os.system(f'echo =========================\n\n')
 for i, result in enumerate(queries):
     file_name = products_df.iloc[i]['identifier']
     os.system(f'echo attempting to download image {i+1}/{total}... {file_name}\n')
-    os.system(result)
+    # os.system(result)
     
     
