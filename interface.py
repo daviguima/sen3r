@@ -2,8 +2,8 @@ from PyQt5.QtWidgets import *
 
 
 app = QApplication([])
+label = QLabel('Hello World!')
 button = QPushButton('Click')
-
 
 def on_button_clicked():
     alert = QMessageBox()
@@ -13,4 +13,5 @@ def on_button_clicked():
 
 button.clicked.connect(on_button_clicked)
 button.show()
+label.show()
 app.exec_()
