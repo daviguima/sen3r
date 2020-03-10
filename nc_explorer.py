@@ -1,19 +1,10 @@
 import os
 import sys
 import utils
-import xarray as xr
-import datetime as dt  # Python standard library datetime  module
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-
-import mpl_toolkits.axisartist as AA
-from mpl_toolkits.axes_grid1 import host_subplot
-
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
-from mpl_toolkits.basemap import Basemap, addcyclic, shiftgrid
-
-from sympy.solvers.diophantine import length
+from mpl_toolkits.basemap import Basemap
 
 
 class NcExplorer:
@@ -381,23 +372,24 @@ class NcExplorer:
 
 if __name__ == "__main__":
 
-    s3_netcdf_folder = 'D:\processing\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3'
+    print('nc_explorer.py : hello from __main__ !')
+    # s3_netcdf_folder = 'D:\processing\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3'
 
-    exp = NcExplorer(input_nc_folder=s3_netcdf_folder,
-                     verbose=True)
+    # exp = NcExplorer(input_nc_folder=s3_netcdf_folder,
+    #                  verbose=True)
 
-    valid_nc_band_names = exp.get_valid_band_files()
+    # valid_nc_band_names = exp.get_valid_band_files()
 
-    lon, lat = exp.get_lon_lat_from_nc()
+    # lon, lat = exp.get_lon_lat_from_nc()
 
-    bands = exp.extract_data_from_netcdf_bands(valid_nc_band_names)
+    # bands = exp.extract_data_from_netcdf_bands(valid_nc_band_names)
 
     # Where is Manaus in the lat lon netcdf matrix?
     # query_lon, query_lat = -60.014493, -3.158980
 
     # exp._temp_plot(lon, lat, df, query_lon, query_lat)
 
-    mat_x_y, band_radiances = exp.get_data_in_bands(bands, lon, lat, query_lon, query_lat)
+    # mat_x_y, band_radiances = exp.get_data_in_bands(bands, lon, lat, query_lon, query_lat)
 
     # file = 'C:\Temp\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002_iCOR.tif'
     # gdal_query_result = exp.get_gdal_value_by_lon_lat(file, query_lon, query_lat)
