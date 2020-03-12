@@ -1,3 +1,4 @@
+pandas
 numpy
 matplotlib
 pyproj
@@ -5,3 +6,4 @@ pyshp
 netcdf4
 pillow
 OWSLib
+jupyter

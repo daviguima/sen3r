@@ -14,6 +14,7 @@ class NcExplorer:
     def __init__(self, input_nc_folder=None, verbose=False):
         self.nc_folder = input_nc_folder
         self.verbose = verbose
+        self.os = os.name
         self.class_label = 'S3-FRBR:Nc_Explorer'
         print(f'Declaring class instance from: {self.class_label}')
         if self.verbose:
@@ -285,14 +286,17 @@ class NcExplorer:
         # ax2.grid()
         plt.show()
 
-    @staticmethod
-    def _extract_band_data(full_nc_path, unmask=False):
+    def _extract_band_data(self, full_nc_path, unmask=False):
         '''
         Assumes the NetCDF file to be a valid Sentinel-3 band file, like the one below:
         D:\S3\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3\Oa01_radiance.nc
         '''
         nc_file = Dataset(full_nc_path, 'r')
-        bname = full_nc_path.split('\\')
+        if self.os == "nt":  # TODO: fix OS compatibility
+            bname = full_nc_path.split('\\')
+        else:
+            bname = full_nc_path.split('/')
+
         bname = bname[-1].split('.')[0]
         extrated_band = nc_file.variables[bname][:]
         if unmask:
@@ -369,6 +373,48 @@ class NcExplorer:
             print(f'\nDone in {t_hour}h:{t_min}m:{t_sec}s\n')
         return bands
 
+    def extract_data_from_single_band(self, netcdf_valid_band_name, unmask=False):
+        """ Returns a pandas DataFrames for a valid band in the input list.
+            This function assumes the presence of a valid folder path containing NetCDF files inside.
+
+        Parameters:
+            netcdf_valid_band_name (str): A string containing the name of
+            the band of interest as described inside de NetCDF file.
+
+            unmask (bool): Weather or not the internal function _extract_band_data() should
+            return a numpy masked array (Default = False).
+
+        Returns:
+            df (pd.DataFrame): A pandas DataFrames containing a 2D matrix for the band name passed in the netcdf_valid_band_name.
+
+        """
+        if self.nc_folder is None:
+            print('Unable to extract band data if NetCDF image folder is not defined during NcExplorer class instance.'
+                  '\nTry pointing your class NcExplorer.nc_folder() to a valid NetCDF Sentinel-3 image folder.')
+            sys.exit(1)
+
+        utils.tic()
+        if self.verbose:
+            print(f'{self.class_label}.extract_data_from_single_band()\n')
+
+        if self.verbose:
+            print(f'extracting band: {netcdf_valid_band_name}')
+        if unmask:
+            if self.os == "nt":
+                band_name, df = self._extract_band_data(self.nc_folder + '\\' + netcdf_valid_band_name, unmask=unmask)
+            else:
+                band_name, df = self._extract_band_data(self.nc_folder + '/' + netcdf_valid_band_name, unmask=unmask)
+
+        else:
+            if self.os == "nt":
+                band_name, df = self._extract_band_data(self.nc_folder + '\\' + netcdf_valid_band_name)
+            else:
+                band_name, df = self._extract_band_data(self.nc_folder + '/' + netcdf_valid_band_name)
+
+        t_hour, t_min, t_sec = utils.tac()
+        if self.verbose:
+            print(f'\nDone in {t_hour}h:{t_min}m:{t_sec}s\n')
+        return df
 
 if __name__ == "__main__":
 
