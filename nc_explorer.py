@@ -317,8 +317,11 @@ class NcExplorer:
             print(f'{self.class_label}.get_lon_lat_from_nc()\n')
             print(f'Extracting Lon/Lat dataframes from: \n{netcdf_files_folder}\n')
         # extract LAT LON from NetCDF
-        # WINDOWS ONLY!!!
-        coords_file = '\\geo_coordinates.nc'
+        if self.os == 'nt':
+            coords_file = '\\geo_coordinates.nc'
+        else:
+            coords_file = '/geo_coordinates.nc'
+
         nc_coord = Dataset(netcdf_files_folder + coords_file, 'r')
 
         lat = nc_coord.variables['latitude'][:]
@@ -345,7 +348,8 @@ class NcExplorer:
             return a numpy masked array (Default = False).
 
         Returns:
-            bands (list): A list of pandas DataFrames containing a 2D matrix for each band name passed in the netcdf_valid_band_list.
+            bands (list): A list of pandas DataFrames containing a 2D matrix for each
+            band name passed in the netcdf_valid_band_list.
 
         """
         if self.nc_folder is None:
@@ -363,9 +367,9 @@ class NcExplorer:
             if self.verbose:
                 print(f'extracting band: {nc_bands[x]} -- {x + 1} of {total}')
             if unmask:
-                band_name, df = self._extract_band_data(self.nc_folder + '\\' + nc_bands[x], unmask=unmask)
+                band_name, df = self._extract_band_data(os.path.join(self.nc_folder, nc_bands[x]), unmask=unmask)
             else:
-                band_name, df = self._extract_band_data(self.nc_folder + '\\' + nc_bands[x])
+                band_name, df = self._extract_band_data(os.path.join(self.nc_folder, nc_bands[x]))
             bands[band_name] = df
 
         t_hour, t_min, t_sec = utils.tac()
@@ -400,16 +404,9 @@ class NcExplorer:
         if self.verbose:
             print(f'extracting band: {netcdf_valid_band_name}')
         if unmask:
-            if self.os == "nt":
-                band_name, df = self._extract_band_data(self.nc_folder + '\\' + netcdf_valid_band_name, unmask=unmask)
-            else:
-                band_name, df = self._extract_band_data(self.nc_folder + '/' + netcdf_valid_band_name, unmask=unmask)
-
+            band_name, df = self._extract_band_data(os.path.join(self.nc_folder, netcdf_valid_band_name), unmask=unmask)
         else:
-            if self.os == "nt":
-                band_name, df = self._extract_band_data(self.nc_folder + '\\' + netcdf_valid_band_name)
-            else:
-                band_name, df = self._extract_band_data(self.nc_folder + '/' + netcdf_valid_band_name)
+            band_name, df = self._extract_band_data(os.path.join(self.nc_folder, netcdf_valid_band_name))
 
         t_hour, t_min, t_sec = utils.tac()
         if self.verbose:
