@@ -128,44 +128,6 @@ class NcExplorer:
                     print_ncattr(var)
         return nc_attrs, nc_dims, nc_vars
 
-    @staticmethod  # TODO: shp and kml are not NetCDF, move it to elsewhere.
-    def gdal_kml_to_shp(input_kml_path):
-        output_shp = input_kml_path.split('.')[0]+'.shp'
-        os.popen('ogr2ogr -f "ESRI Shapefile" %s %s' % (output_shp, input_kml_path))
-        return output_shp
-
-    @staticmethod  # TODO: express call from external tool for manipulation of Tiff does not belong in a NetCDF exploring class.
-    def get_gdal_value_by_lon_lat(tif_file, lon, lat):
-
-        result = os.popen('gdallocationinfo -valonly -wgs84 %s %s %s' %
-                          (tif_file, lon, lat)).read()
-        # https://gis.stackexchange.com/questions/118397/storing-result-from-gdallocationinfo-as-variable-in-python
-        return result
-
-    @staticmethod  # TODO: Tiff stuff should not be inside this class.
-    def read_tiff_bands(file):
-        from osgeo import gdal
-
-        src_ds = gdal.Open(file)
-        if src_ds is None:
-            print('Unable to open input .tif')
-            sys.exit(1)
-
-        print("[ RASTER BAND COUNT ]: ", src_ds.RasterCount)
-        for band in range(src_ds.RasterCount):
-            band += 1
-            print("[ GETTING BAND ]: ", band)
-            srcband = src_ds.GetRasterBand(band)
-            if srcband is None:
-                continue
-
-            stats = srcband.GetStatistics(True, True)
-            if stats is None:
-                continue
-
-            print("[ STATS ] =  Minimum=%.3f, Maximum=%.3f, Mean=%.3f, StdDev=%.3f" %
-                  (stats[0], stats[1], stats[2], stats[3]))
-
     @staticmethod  # TODO: as the name states, temp stuff either needs to be fixed, moved or removed.
     def _temp_plot(lon, lat, plot_var, roi_lon=None, roi_lat=None):
         # Miller projection:
@@ -256,6 +218,24 @@ class NcExplorer:
             rad_in_bands.append(rad)
 
         return target_x_y, rad_in_bands
+
+    def get_point_data_in_single_band(self, band, lon=None, lat=None, target_lon=None, target_lat=None):
+        # TODO: write docstrings
+        if self.verbose:
+            print(f'{self.class_label}.get_point_data_in_single_band()\n')
+
+        lat = lat[:, :, np.newaxis]
+        lon = lon[:, :, np.newaxis]
+        grid = np.concatenate([lat, lon], axis=2)
+        vector = np.array([target_lat, target_lon]).reshape(1, 1, -1)
+        subtraction = vector - grid
+        dist = np.linalg.norm(subtraction, axis=2)
+        result = np.where(dist == dist.min())
+        target_x_y = result[0][0], result[1][0]
+
+        rad = band[target_x_y]
+
+        return target_x_y, rad
 
     # TODO: this is very specific, make it more generic.
     def plot_s3_lv2_reflectances(self, radiance_list, icor, band_radiances, figure_title):
