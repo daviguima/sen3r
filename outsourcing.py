@@ -1,4 +1,4 @@
-
+import os
 
 def snappy_bridge(product_input_path, product_output_path):
     """
@@ -11,6 +11,18 @@ def snappy_bridge(product_input_path, product_output_path):
     # https://senbox.atlassian.net/wiki/spaces/SNAP/pages/42041346/What+to+consider+when+writing+an+Operator+in+Python
     p = ProductIO.readProduct(product_input_path)  # read product
     ProductIO.writeProduct(p, product_output_path, 'GeoTIFF-BigTIFF')  # write product
+
+class gpt_bridge:
+    """
+    TODO: write docstrings
+    """
+    def __init__(self, gpt_path):
+        self.gpt_path = gpt_path
+
+    def subset_by_shp_and_get_pixel_values(self, shp_path):
+        # os.popen('ogr2ogr -f "ESRI Shapefile" %s %s' % (output_shp, input_kml_path))
+        os.popen('%s /d_drive_data/processing/shapefileExtraction_custom.xml -f CSV -t /d_drive_data/processing/output.txt -Ssource=/d_drive_data/L2_WFR/S3A_OL_2_WFR____20190309T141223_20190309T141523_20190310T211622_0179_042_167_3060_MAR_O_NT_002.SEN3' %
+                 (self.gpt_path, shp_path))
 
 
 def keep_df_interval(keepfrom: 0.0, keepto: 1.0, dataframe, target_col: str):
