@@ -46,24 +46,29 @@ class GPTBridge:
     def __repr__(self):
         return f'gpt_bridge class instance using gpt: {self.gpt_path} and output: {self.output_path} as {self.output_format}'
 
-
-
-    def get_pixels_by_kml(self, kml_path):
+    def get_pixels_by_kml(self, kml_path, s3imgfolder):
         """
         TODO: write docstring
         """
-        gdtk = GDALBridge()  # create a class instance to exploit its tools and call it gdtk as short for gdal-toolkit.
+        # create a class instance to exploit its tools and call it gdtk as short for gdal-toolkit.
+        gdtk = GDALBridge()
 
-        shp_path = gdtk.gdal_kml_to_shp(kml_path, self.output_path)  # converts the input kml file into .shp and return its path.
+        # converts the input kml file into .shp and return its path.
+        shp_path = gdtk.gdal_kml_to_shp(kml_path, self.output_path)
 
-        wkt_str = gdtk.gdal_kml_to_wkt(kml_path, self.output_path, destroy_files=True, output_as_string=True)  # converts the input kml file into .wkt and return its path.
+        # converts the input kml file into .wkt and return it as a string.
+        wkt_str = gdtk.gdal_kml_to_wkt(kml_path, self.output_path, destroy_files=True, output_as_string=True)
 
+        # calculate the bounding box geometry based in the given wkt string
         wkt_bbox = gdtk.get_envelope_from_wkt(wkt_str)
 
         shp_name = os.path.basename(shp_path).split('.')[0]
+        graph_id = 'S3FRBRGraphId'
+        version = '1.0'
         source_string = '${source}'
-        xml_string = (f'<graph id="someGraphId">'
-                      f'<version>1.0</version>'
+
+        xml_string = (f'<graph id="{graph_id}">'
+                      f'<version>{version}</version>'
                       f'<node id="regionalSubset">'
                       f'<operator>Subset</operator>'
                       f'<sources>'
@@ -102,16 +107,31 @@ class GPTBridge:
         filename = f'gpt_{shp_name}.xml'
         output_xml = os.path.join(self.output_path, filename)
 
+        output_pixel_txt = os.path.basename(s3imgfolder).split('.')[0] + '_subset.txt'
+        output_pixel_txt_path = os.path.join(self.output_path, output_pixel_txt)
+
         with open(output_xml, 'w') as f:
             f.write(xml_string)
 
-        return print(output_xml)
+        gpt_command_str = f'{self.gpt_path} {output_xml} -f CSV -t {output_pixel_txt_path} -Ssource={s3imgfolder}'
+
+        gpt_proccess = subprocess.Popen(gpt_command_str.split())
+        gpt_proccess.wait()
+
+        # /d_drive_data/snap/bin/gpt
+        # /d_drive_data/processing/test/gpt_manacapuru.xml
+        # -f
+        # CSV
+        # -t
+        # /d_drive_data/processing/test/manaca_pixels.txt
+        # -Ssource=/d_drive_data/L2_WFR/S3A_OL_2_WFR____20190309T141223_20190309T141523_20190310T211622_0179_042_167_3060_MAR_O_NT_002.SEN3
 
         # https://forum.step.esa.int/t/pixel-extraction-from-many-sentinel-3-products-in-snap/13464/2?u=daviguima
         # <!-- gpt shapefileExtraction.xml -f NetCDF4-CF -t <target_product_path> -Ssource=<source_product_path>
         # Instead of NetCDF4-CF the format CSV can be used, if ASCII output is desired. -->
         # os.popen(f'{self.gpt_path} {self.graph_xml_path} -f {self.output_format} -t %s -Ssource=/d_drive_data/L2_WFR/S3A_OL_2_WFR____20190309T141223_20190309T141523_20190310T211622_0179_042_167_3060_MAR_O_NT_002.SEN3')
 
+        return print(gpt_command_str + '\n' + output_pixel_txt_path)
 
 class GDALBridge:
     """
