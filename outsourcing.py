@@ -37,11 +37,12 @@ class GPTBridge:
     Returns:
 
     """
-    def __init__(self, gpt_sys_path, output_path, output_format='CSV'):
+    def __init__(self, gpt_sys_path, output_path, output_format='CSV', verbose=False):
         self.gpt_path = gpt_sys_path
         self.output_path = output_path
         self.output_format = output_format
         self.graph_xml_path = self.output_path  # this will just assume the same path as the output.
+        self.verbose = verbose
 
     def __repr__(self):
         return f'gpt_bridge class instance using gpt: {self.gpt_path} and output: {self.output_path} as {self.output_format}'
