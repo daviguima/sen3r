@@ -13,7 +13,7 @@ import os
 copernicus = 'https://scihub.copernicus.eu/dhus'
 eumetsat = 'https://coda.eumetsat.int'
 
-url = eumetsat # WFR
+# url = eumetsat # WFR
 
 if 'url' in globals():
     print(f'URL set to {url}')
@@ -26,20 +26,32 @@ else:
     password = config('COP_PASS', default='')
     api = SentinelAPI(user, password)
     
-JSON = 'd:\/git-repos\/s3-frbr\/amz_manacapuru.json'
+# JSON = 'd:\/git-repos\/s3-frbr\/amz_manacapuru.json'
 
 #%%
 
 # search by polygon, time, and SciHub query keywords
-footprint = geojson_to_wkt(read_geojson(JSON))
+# footprint = geojson_to_wkt(read_geojson(JSON))
+
+# products = api.query(
+#     # footprint,
+#     date=('20191001', date(2020, 4, 1)), # day + 1
+#     platformname='Sentinel-3',
+#     # producttype='OL_2_LFR___',
+#     filename='S3?_OL_2_WFR*',
+#     # cloudcoverpercentage=(0, 30)
+#     timeliness='Non Time Critical',
+#     raw='footprint:"Intersects(POLYGON((-60.58496475219726 -3.3432664216192993, -60.549087524414055 -3.3432664216192993, -60.549087524414055 -3.3107057310886976, -60.58496475219726 -3.3107057310886976, -60.58496475219726 -3.3432664216192993)))"'
+# )
+
 products = api.query(
     # footprint,
-    date=('20200216', date(2020, 2, 22)), # day + 1
+    date=('20200213', date(2020, 2, 24)), # day + 1
     platformname='Sentinel-3',
-    # producttype='OL_2_LFR___',
-    filename='S3?_OL_1_?FR*',
+    producttype='OL_1_EFR___',
+    # filename='S3?_OL_2_*',
     # cloudcoverpercentage=(0, 30)
-    # timeliness='Non Time Critical',
+    timeliness='Non Time Critical',
     raw='footprint:"Intersects(POLYGON((-60.58496475219726 -3.3432664216192993, -60.549087524414055 -3.3432664216192993, -60.549087524414055 -3.3107057310886976, -60.58496475219726 -3.3107057310886976, -60.58496475219726 -3.3432664216192993)))"'
 )
 
@@ -102,6 +114,4 @@ os.system(f'echo =========================\n\n')
 for i, result in enumerate(queries):
     file_name = products_df.iloc[i]['identifier']
     os.system(f'echo attempting to download image {i+1}/{total}... {file_name}\n')
-    # os.system(result)
-    
-    
+    os.system(result)

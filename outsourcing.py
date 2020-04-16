@@ -5,17 +5,33 @@ import re
 import numpy as np
 
 
-def snappy_bridge(product_input_path, product_output_path):
-    """
-    product_input_path = '/path/to/S3B_OL_1_EFR____FILE.dim'
-    product_output_path = '/path/to/output/'
-    """
-    from snappy import ProductIO
-    # http://step.esa.int/docs/v7.0/apidoc/engine/org/esa/snap/core/dataio/ProductIO.html
-    # https://forum.step.esa.int/t/writing-out-a-product-as-geotiff-bigtiff/9263/2
-    # https://senbox.atlassian.net/wiki/spaces/SNAP/pages/42041346/What+to+consider+when+writing+an+Operator+in+Python
-    p = ProductIO.readProduct(product_input_path)  # read product
-    ProductIO.writeProduct(p, product_output_path, 'GeoTIFF-BigTIFF')  # write product
+class ICORBridge:
+    # https://forum.step.esa.int/t/icor-module-using-gpt-operator-icor-s2/7205/8
+    def run_iCOR_on_image(self, s3_image_path):
+
+        log_path = r'c:\Users[USERNAME]\AppData\Roaming\SNAP\var\log\messages.log'
+        icor_call = r'c:\Program Files\VITO\iCOR\bin\Python27\python.exe c:\Program Files\VITO\iCOR\src\icor.py --keep_intermediate false --cloud_average_threshold 0.19 --cloud_low_band B01 --cloud_low_threshold 0.25 --cirrus true --aot true --aot_window_size 100 --simec false --watervapor false --bg_window 1 --cirrus_threshold 0.01 --aot_override 0.1 --ozone_override 0.33 --wv_override 2.0 --water_band B08 --water_threshold 0.05 --data_type S2 --output_file [output_location][PRODUCT_XML_LOCATION]'
+
+        icor_command_str = f''
+
+        icor_proccess = subprocess.Popen(icor_command_str.split())
+        icor_proccess.wait()
+        pass
+
+
+class SNAPPYBridge:
+
+    def write_geotiff(product_input_path, product_output_path):
+        """
+        product_input_path = '/path/to/S3B_OL_1_EFR____FILE.dim'
+        product_output_path = '/path/to/output/'
+        """
+        from snappy import ProductIO
+        # http://step.esa.int/docs/v7.0/apidoc/engine/org/esa/snap/core/dataio/ProductIO.html
+        # https://forum.step.esa.int/t/writing-out-a-product-as-geotiff-bigtiff/9263/2
+        # https://senbox.atlassian.net/wiki/spaces/SNAP/pages/42041346/What+to+consider+when+writing+an+Operator+in+Python
+        p = ProductIO.readProduct(product_input_path)  # read product
+        ProductIO.writeProduct(p, product_output_path, 'GeoTIFF-BigTIFF')  # write product
 
 
 class GPTBridge:
