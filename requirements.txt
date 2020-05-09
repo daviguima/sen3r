@@ -10,3 +10,4 @@ pillow
 OWSLib
 jupyter
 rasterstats
+pyqt5-tools

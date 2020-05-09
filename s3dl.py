@@ -46,7 +46,7 @@ else:
 
 products = api.query(
     # footprint,
-    date=('20200213', date(2020, 2, 24)), # day + 1
+    date=('20180501', date(2018, 6, 1)), # day + 1
     platformname='Sentinel-3',
     producttype='OL_1_EFR___',
     # filename='S3?_OL_2_*',
@@ -114,4 +114,4 @@ os.system(f'echo =========================\n\n')
 for i, result in enumerate(queries):
     file_name = products_df.iloc[i]['identifier']
     os.system(f'echo attempting to download image {i+1}/{total}... {file_name}\n')
-    os.system(result)
+    # os.system(result)

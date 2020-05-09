@@ -1,21 +1,102 @@
 import os
 import sys
 import subprocess
+import logging
 import re
 import numpy as np
+import utils
+import shutil
 
+logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S', level=logging.DEBUG)
 
 class ICORBridge:
     # https://forum.step.esa.int/t/icor-module-using-gpt-operator-icor-s2/7205/8
-    def run_iCOR_on_image(self, s3_image_path):
+    """
+    WINDOWS ONLY!
+    """
+    @staticmethod
+    def run_iCOR_on_image(s3_image_path, destination=None):
+        """
+        s3_image_path is expected to be something like:
+        D:\L1_EFR\S3A_OL_1_EFR____20181106T140113_20181106T140413_20181107T182233_0179_037_338_3060_LN1_O_NT_002.SEN3
+        """
+        # WARNING, this may change according to your iCOR installation folder.
+        # TODO: write a conditional check for the iCOR and its python path.
+        icor_python = r'"C:\Program Files\VITO\iCOR\bin\Python27\python.exe"'
+        icor_path = r'"C:\Program Files\VITO\iCOR\src\icor.py"'
 
-        log_path = r'c:\Users[USERNAME]\AppData\Roaming\SNAP\var\log\messages.log'
-        icor_call = r'c:\Program Files\VITO\iCOR\bin\Python27\python.exe c:\Program Files\VITO\iCOR\src\icor.py --keep_intermediate false --cloud_average_threshold 0.19 --cloud_low_band B01 --cloud_low_threshold 0.25 --cirrus true --aot true --aot_window_size 100 --simec false --watervapor false --bg_window 1 --cirrus_threshold 0.01 --aot_override 0.1 --ozone_override 0.33 --wv_override 2.0 --water_band B08 --water_threshold 0.05 --data_type S2 --output_file [output_location][PRODUCT_XML_LOCATION]'
+        output_tif = str(os.path.basename(s3_image_path).split('.')[0]) + '_processed.tif'
+        output_hdr = str(os.path.basename(s3_image_path).split('.')[0]) + '_processed.hdr'
 
-        icor_command_str = f''
+        icor_output_tif = f'"C:\\Temp\\{output_tif}"'
+        icor_output_hdr = f'"C:\\Temp\\{output_hdr}"'
 
-        icor_proccess = subprocess.Popen(icor_command_str.split())
+        # this is splitting the name of the sensor and adding its last letter A/B to the end of the sensor variable.
+        sensor_check = os.path.basename(s3_image_path).split('_')[0][-1]
+        sensor = f'3{sensor_check}'
+
+        netcdf_xml_manifest = f'"{s3_image_path}\\xfdumanifest.xml"'
+
+        icor_call = f'{icor_python} {icor_path} ' \
+                    f'--keep_intermediate false -' \
+                    f'-cloud_average_threshold 0.23 ' \
+                    f'--cloud_low_band B02 ' \
+                    f'--cloud_low_threshold 0.2 ' \
+                    f'--aot true ' \
+                    f'--aot_window_size 100 ' \
+                    f'--simec true ' \
+                    f'--bg_window 1 ' \
+                    f'--aot_override 0.1 ' \
+                    f'--ozone true ' \
+                    f'--aot_override 0.1 ' \
+                    f'--ozone_override 0.33 ' \
+                    f'--watervapor true ' \
+                    f'--wv_override 2.0 ' \
+                    f'--water_band B18 ' \
+                    f'--water_threshold 0.06 ' \
+                    f'--data_type S3 ' \
+                    f'--output_file {icor_output_tif} ' \
+                    f'--sensor {sensor} ' \
+                    f'--apply_svc_gains true ' \
+                    f'--inlandwater true ' \
+                    f'--productwater true ' \
+                    f'--keep_land false ' \
+                    f'--keep_water false ' \
+                    f'--project true {netcdf_xml_manifest}'
+        utils.tic()
+        print(f'Applying iCOR to image:\n{s3_image_path}\nSensor: {sensor}\n')
+        print(f'******* S3FRBR iCOR call ********\n')
+        print(f'{icor_call}\n')
+        print(f'*********************************')
+        icor_proccess = subprocess.Popen(icor_call)
         icor_proccess.wait()
+
+        t_hour, t_min, t_sec = utils.tac()
+        print(f'************** DONE *************')
+        print(f'TIME: {t_hour}h:{t_min}m:{t_sec}s')
+        print(f'*********************************')
+        # return icor_call
+
+        if destination:
+            try:
+                print(utils.repeat_to_length('*', len(icor_output_tif)))
+                print(f'Moving iCOR output .tif from:\n'
+                      f'{icor_output_tif}\n'
+                      f'to:\n'
+                      f'{destination}\\{output_tif}')
+                print(utils.repeat_to_length('*', len(icor_output_tif)))
+
+                destination_output = f'{destination}\\{output_tif}'
+                shutil.move(icor_output_tif, destination_output)
+
+                print(f'Moving iCOR output .hdr from:\n'
+                      f'{icor_output_hdr}\n'
+                      f'to:\n'
+                      f'{destination}\\{output_hdr}')
+
+                shutil.move(icor_output_hdr, destination + '\\' + output_hdr)
+            except:
+                print("Unexpected error:", sys.exc_info()[0])
         pass
 
 
@@ -53,29 +134,31 @@ class GPTBridge:
     Returns:
 
     """
-    def __init__(self, gpt_sys_path, output_path, output_format='CSV', verbose=False):
+    def __init__(self, gpt_sys_path, output_path, output_format='CSV', verbose=False, kml_path=None):
         self.gpt_path = gpt_sys_path
         self.output_path = output_path
         self.output_format = output_format
         self.graph_xml_path = self.output_path  # this will just assume the same path as the output.
         self.verbose = verbose
+        self.kml_path = kml_path
 
     def __repr__(self):
         return f'gpt_bridge class instance using gpt: {self.gpt_path} and output: {self.output_path} as {self.output_format}'
 
-    def get_pixels_by_kml(self, kml_path, s3imgfolder):
+    def get_pixels_by_kml(self, s3imgfolder):
         """
         TODO: write docstring
         """
+        kml_path = self.kml_path
         # create empty folder to store intermediate files
         output_folder = 'AUX_' + str(os.path.basename(s3imgfolder).split('.')[0])
         output_folder_path = os.path.join(self.output_path, output_folder)
 
         if not os.path.exists(output_folder_path):
             os.mkdir(output_folder_path)
-            print("Directory ", output_folder_path, " Created ")
+            print("Directory created @", output_folder_path)
         else:
-            print("Directory ", output_folder_path, " already exists")
+            print("Directory already exists @", output_folder_path)
 
         # create a class instance to exploit its tools and call it gdtk as short for gdal-toolkit.
         gdtk = GDALBridge()
@@ -138,11 +221,16 @@ class GPTBridge:
 
         with open(output_xml, 'w') as f:
             f.write(xml_string)
+        if os.name == 'nt':
+            gpt_command_str = f'"{self.gpt_path}" "{output_xml}" -f CSV -t "{output_pixel_txt_path}" -Ssource={s3imgfolder}'
+        else:
+            gpt_command_str = f'{self.gpt_path} {output_xml} -f CSV -t {output_pixel_txt_path} -Ssource={s3imgfolder}'
 
-        gpt_command_str = f'{self.gpt_path} {output_xml} -f CSV -t {output_pixel_txt_path} -Ssource={s3imgfolder}'
-
-        gpt_proccess = subprocess.Popen(gpt_command_str.split())
+        logging.info(f'Calling SNAP-GPT using command string:\n\n{gpt_command_str}\n\n')
+        # gpt_proccess = subprocess.Popen(gpt_command_str.split())
+        gpt_proccess = subprocess.Popen(gpt_command_str)
         gpt_proccess.wait()
+        logging.info(f'GPT processing complete, output file should be generated at:\n{output_pixel_txt_path}\n\n')
 
         return output_pixel_txt_path
 
@@ -215,6 +303,7 @@ class GDALBridge:
         """
         Converts a given Google earth KML file to text format following the WKT standard.
         """
+        logging.info(f'Starting GDALBridge: gdal_kml_to_wkt...\n')
         if output_wkt_path:
             filename = os.path.basename(input_kml_path).split('.')[0] + '.csv'
             output_csv = os.path.join(output_wkt_path, filename)
@@ -224,11 +313,21 @@ class GDALBridge:
             output_csv = input_kml_path.split('.')[0] + '.csv'
             output_wkt = input_kml_path.split('.')[0] + '.wkt'
 
-        ogr2ogr_proccess = subprocess.Popen(['ogr2ogr', '-overwrite', '-f', 'CSV', '-dsco', 'GEOMETRY=AS_WKT', output_csv, input_kml_path])
+        # ogr2ogr_proccess = subprocess.Popen(['ogr2ogr', '-overwrite', '-f', 'CSV', '-dsco', 'GEOMETRY=AS_WKT', output_csv, input_kml_path])
+        # ogr2ogr_proccess.wait()
+
+        if os.name == 'nt':
+            ogr2ogr_command_str = f'ogr2ogr -overwrite -f CSV -dsco GEOMETRY=AS_WKT "{output_csv}" "{input_kml_path}"'
+        else:
+            ogr2ogr_command_str = f'ogr2ogr -overwrite -f CSV -dsco GEOMETRY=AS_WKT {output_csv} {input_kml_path}'
+
+        logging.info(f'Making internal call to GDAL using command string:\n{ogr2ogr_command_str}\n')
+
+        ogr2ogr_proccess = subprocess.Popen(ogr2ogr_command_str)
         ogr2ogr_proccess.wait()
 
-        wkt_file = open(output_csv, 'r')
-        wkt_txt = wkt_file.read()
+        with open(output_csv, 'r') as wkt_file:
+            wkt_txt = wkt_file.read()
 
         pattern = re.search(r'\(\(.*\)\)', wkt_txt, re.MULTILINE)
 
