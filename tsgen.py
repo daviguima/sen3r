@@ -296,7 +296,7 @@ if __name__ == '__main__':
     #                        fig_title='{area}: S3-WFR Oa08 Reflectance (665nm) time-series from 2019-03-09 to 2020-03-31')
 
     tsgen.plot_multi_ts_from_csv(csv_path=output_file,
-                                 tms_keys=['B8-665','B17-865'],
+                                 tms_keys=['B8-665', 'B17-865'],
                                  fig_title=f'{area}: S3-WFR Reflectance time-series from 2019-03-09 to 2020-03-31',
                                  save_title=save_file)
 

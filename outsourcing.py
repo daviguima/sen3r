@@ -7,7 +7,6 @@ import numpy as np
 import utils
 import shutil
 
-logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S', level=logging.DEBUG)
 
 class ICORBridge:
     # https://forum.step.esa.int/t/icor-module-using-gpt-operator-icor-s2/7205/8
@@ -15,7 +14,7 @@ class ICORBridge:
     WINDOWS ONLY!
     """
     @staticmethod
-    def run_iCOR_on_image(s3_image_path, destination=None):
+    def run_iCOR_on_image(s3_image_path, simec=True, keep_water=False, destination=None):
         """
         s3_image_path is expected to be something like:
         D:\L1_EFR\S3A_OL_1_EFR____20181106T140113_20181106T140413_20181107T182233_0179_037_338_3060_LN1_O_NT_002.SEN3
@@ -37,14 +36,18 @@ class ICORBridge:
 
         netcdf_xml_manifest = f'"{s3_image_path}\\xfdumanifest.xml"'
 
+        # Ternary operator
+        str_simec = "true" if simec else "false"
+        str_keep_water = "true" if keep_water else "false"
+
         icor_call = f'{icor_python} {icor_path} ' \
-                    f'--keep_intermediate false -' \
-                    f'-cloud_average_threshold 0.23 ' \
+                    f'--keep_intermediate false ' \
+                    f'--cloud_average_threshold 0.23 ' \
                     f'--cloud_low_band B02 ' \
                     f'--cloud_low_threshold 0.2 ' \
                     f'--aot true ' \
                     f'--aot_window_size 100 ' \
-                    f'--simec true ' \
+                    f'--simec {str_simec} ' \
                     f'--bg_window 1 ' \
                     f'--aot_override 0.1 ' \
                     f'--ozone true ' \
@@ -61,15 +64,25 @@ class ICORBridge:
                     f'--inlandwater true ' \
                     f'--productwater true ' \
                     f'--keep_land false ' \
-                    f'--keep_water false ' \
+                    f'--keep_water {str_keep_water} ' \
                     f'--project true {netcdf_xml_manifest}'
         utils.tic()
         print(f'Applying iCOR to image:\n{s3_image_path}\nSensor: {sensor}\n')
-        print(f'******* S3FRBR iCOR call ********\n')
-        print(f'{icor_call}\n')
+        print(f'******* S3FRBR iCOR call ********')
+        print(f'{icor_call}')
         print(f'*********************************')
+
         icor_proccess = subprocess.Popen(icor_call)
         icor_proccess.wait()
+        # # stdout, sterr = icor_proccess.communicate()
+        # # return_code = icor_proccess.returncode
+        #
+        # completed_process = subprocess.run(icor_call, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        # return_code = completed_process.returncode
+        # stdout = completed_process.stdout
+        # sterr = completed_process.stderr
+        #
+        # print(f"subprocess.run complete:\nreturn_code:{return_code} \nstdout:{stdout} \nstderr:{sterr}")
 
         t_hour, t_min, t_sec = utils.tac()
         print(f'************** DONE *************')
@@ -235,11 +248,12 @@ class GPTBridge:
         return output_pixel_txt_path
 
 class GDALBridge:
+    from osgeo import ogr
+    from osgeo import gdal
     """
     TODO: write docstrings
     """
-    @staticmethod
-    def get_envelope_from_wkt(raw_wkt):
+    def get_envelope_from_wkt(self, raw_wkt):
         """
         Calculates the bounding box rectangle from a given wkt file.
         Implementation advices from: https://pcjericks.github.io/py-gdalogr-cookbook/geometry.html
@@ -252,7 +266,7 @@ class GDALBridge:
         Returns: wkt (str): A string containing a WKT geometry with the bounding box rectangle
                             calculated from the input raw_wkt.
         """
-        from osgeo import ogr
+        ogr = self.ogr
         geom_poly = ogr.CreateGeometryFromWkt(raw_wkt)
         geom_poly_envelope = geom_poly.GetEnvelope()
 
@@ -357,10 +371,19 @@ class GDALBridge:
         # https://gis.stackexchange.com/questions/118397/storing-result-from-gdallocationinfo-as-variable-in-python
         return result
 
-    @staticmethod
-    def read_tiff_bands(file):
-        from osgeo import gdal
+    def get_tiff_band_count(self, file):
+        gdal = self.gdal
+        src_ds = gdal.Open(file)
+        if src_ds is None:
+            logging.error('Unable to open input .tif')
+            sys.exit(1)
+        logging.info(f"[ INPUT RASTER ]: {file}")
+        logging.info(f"[ RASTER BAND COUNT ]: {src_ds.RasterCount}")
+        return src_ds.RasterCount
 
+    # https://pcjericks.github.io/py-gdalogr-cookbook/raster_layers.html
+    def read_tiff_bands(self, file):
+        gdal = self.gdal
         src_ds = gdal.Open(file)
         if src_ds is None:
             print('Unable to open input .tif')
