@@ -1,12 +1,12 @@
 import os
 import sys
-import logging
+# import logging
 import utils
 import numpy as np
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 
-logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S', level=logging.DEBUG)
+# logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S', level=logging.DEBUG)
 
 try:
     from mpl_toolkits.basemap import Basemap

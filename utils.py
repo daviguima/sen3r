@@ -16,4 +16,3 @@ def tac():
 
 def repeat_to_length(s, wanted):
     return (s * (wanted//len(s) + 1))[:wanted]
-

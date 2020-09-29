@@ -1,3 +1,4 @@
+scipy
 python-decouple
 sentinelsat
 pandas

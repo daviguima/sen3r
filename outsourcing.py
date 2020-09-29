@@ -249,6 +249,7 @@ class GPTBridge:
 
 class GDALBridge:
     from osgeo import ogr
+    from osgeo import osr
     from osgeo import gdal
     """
     TODO: write docstrings
@@ -362,6 +363,14 @@ class GDALBridge:
             return final_wkt_string
         else:
             return output_wkt
+
+    @staticmethod
+    def shp_to_json(input_shp, output_geojson):
+        import geopandas
+
+        shpfile = geopandas.read_file(input_shp)
+        shpfile.to_file(output_geojson, driver='GeoJSON')
+        pass
 
     @staticmethod
     def get_gdal_value_by_lon_lat(tif_file, lon, lat):
