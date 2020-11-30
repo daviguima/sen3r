@@ -2,15 +2,19 @@ import os
 import sys
 import logging
 import time
+import utils
 import pandas as pd
 import numpy as np
 import outsourcing as out
 import matplotlib.pyplot as plt
 import concurrent.futures
 
+from PIL import Image
 from datetime import datetime
 from scipy.signal import argrelextrema
 from scipy import stats
+
+from matplotlib import gridspec
 
 import matplotlib
 import matplotlib.cm as cm
@@ -24,6 +28,7 @@ class TsGenerator():
 
     exp = NcExplorer()
     imgdpi = 100
+    rcparam = [14, 5.2]
 
     bname_dict = {'B1-400': 'Oa01: 400 nm',
                   'B2-412.5': 'Oa02: 412.5 nm',
@@ -118,7 +123,9 @@ class TsGenerator():
                 55: 'RWNEG_O21'}
 
     def get_flags(self, val):
-
+        """
+        # TODO: Write docstrings.
+        """
         if isinstance(val, float):
             binexval = "{0:b}".format(int(val))
         elif isinstance(val, int):
@@ -154,7 +161,9 @@ class TsGenerator():
     keep = ['INLAND_WATER']
 
     def get_quality(self, checklist):
-
+        """
+        # TODO: Write docstrings.
+        """
         if checklist:
             if all(i in checklist for i in self.keep):
                 if any(i in checklist for i in self.remove):
@@ -187,43 +196,32 @@ class TsGenerator():
 
     @staticmethod
     def get_pct_valid(df, total_ini):
+        """
+        # TODO: Write docstrings.
+        """
         total_end = len(df)
         df['PCTVLDPX'] = (total_end * 100) / total_ini
         return df
 
     def add_flags_to_df(self, df):
+        """
+        # TODO: Write docstrings.
+        """
         df['FLAGS'] = df['WQSF_lsb:double'].apply(self.get_flags)
         df['QUALITY'] = df['FLAGS'].apply(self.get_quality)
         return df
 
-    def update_csvs(self, csv_path, savepath=False, threshold=False):
-        """
-        Given an CSV of pixels extracted using GPT(SNAP), filter the dataset and add some new columns.
+    def update_df(self, df, threshold=False):
 
-        Input:
-            csv_path (string): complete path to the CSV to be updated.
-            ex: "D:\\sentinel3\\inputs\\S3B_OL_2_WFR____20191002T140633_subset_masked.txt"
-
-            savepath (string): system folder where to save the modified csv.
-            ex: "D:\\sentinel3\\outputs"
-
-            When savepath is not given, the new DF will no be saved, but it will still be returned.
-
-        Output:
-            df (pandas dataframe): in-memory version of the input data that was read and modified from csv_path.
-        """
-
-        # read text file and convert to pandas dataframe
-        df = pd.read_csv(csv_path, sep='\t', skiprows=1)
-
-        # Get + Delete: indexes for which column LON has value 0
-        indexNames = df[df['longitude:double'] == 0].index
+        # Delete indexes for which Oa01_reflectance is saturated:
+        indexNames = df[df['Oa01_reflectance:float'] == 1.0000184].index
         df.drop(indexNames, inplace=True)
 
         # This should represent 100% of the pixels inside the SHP area.
         df['PCTVLDPX'] = len(df)
 
-        # Assuming the reflectance of water pixels should not be above 0.2 (Oa17:865nm), we will drop using this threshold
+        # Assuming that the reflectance of water pixels should not be above 0.2
+        # in the NIR Band (Oa17:865nm), we will drop using the threshold:
         if threshold:
             indexNames = df[df['Oa17_reflectance:float'] > threshold].index
             # Delete these row indexes from dataFrame
@@ -240,10 +238,6 @@ class TsGenerator():
         indexNames = df[df['FLAGS'] == False].index
         df.drop(indexNames, inplace=True)
 
-        # Calculate GLINT for DF
-        print('Calculating GLINT column...')
-        df = self.get_glint(df)
-
         # Delete rows where GLINT < 25
         # indexNames = df[df['GLINT'] < 25].index
         # df.drop(indexNames, inplace=True)
@@ -256,8 +250,8 @@ class TsGenerator():
         ################################
         # FILTER NEGATIVE REFLECTANCES #
         ################################
-        df.loc[df['Oa01_reflectance:float'] < 0, 'Oa01_reflectance:float'] = np.nan
-        df.loc[df['Oa02_reflectance:float'] < 0, 'Oa02_reflectance:float'] = np.nan
+        # df.loc[df['Oa01_reflectance:float'] < 0, 'Oa01_reflectance:float'] = np.nan
+        # df.loc[df['Oa02_reflectance:float'] < 0, 'Oa02_reflectance:float'] = np.nan
         df.loc[df['Oa03_reflectance:float'] < 0, 'Oa03_reflectance:float'] = np.nan
         df.loc[df['Oa04_reflectance:float'] < 0, 'Oa04_reflectance:float'] = np.nan
         df.loc[df['Oa05_reflectance:float'] < 0, 'Oa05_reflectance:float'] = np.nan
@@ -295,13 +289,13 @@ class TsGenerator():
         # df.drop(indexNames, inplace=True)
         # indexNames = df[df['T865:float'] > upperlim].index
         # df.drop(indexNames, inplace=True)
-        
+
         ################################################
         # DROP OUTSIDE 25% OF THE MEDIAN FOR T865/A865 #
         ################################################
 
         # Get values 25% below or above the median for T865
-        # T865_median = np.nanmedian(df['T865:float'], axis=0)
+                # T865_median = np.nanmedian(df['T865:float'], axis=0)
         # T865_upper_lim = T865_median + (0.25 * T865_median)
         # T865_lower_lim = T865_median - (0.25 * T865_median)
 
@@ -322,13 +316,72 @@ class TsGenerator():
         # indexNames = df[df['A865:float'] < A865_lower_lim].index
         # df.drop(indexNames, inplace=True)
 
-        # Fix the indexing of the dataframe
+        #####################################
+        # Fix the indexing of the dataframe #
+        #####################################
+        # df.reset_index(drop=True, inplace=True)
+
+        # Calculate GLINT for DF
+        print('Calculating GLINT column...')
+        df = self.get_glint(df)
+
+        return df
+
+    def update_csvs(self, csv_path, savepath=False, threshold=False, kde=False):
+        """
+        Given an CSV of pixels extracted using GPT(SNAP), filter the dataset and add some new columns.
+
+        Input:
+            csv_path (string): complete path to the CSV to be updated.
+            ex: "D:\\sentinel3\\inputs\\S3B_OL_2_WFR____20191002T140633_subset_masked.txt"
+
+            savepath (string): system folder where to save the modified csv.
+            ex: "D:\\sentinel3\\outputs"
+
+            When savepath is not given, the new DF will no be saved, but it will still be returned.
+
+        Output:
+            df (pandas dataframe): in-memory version of the input data that was read and modified from csv_path.
+        """
+
+        # read text file and convert to pandas dataframe
+        raw_df = pd.read_csv(csv_path, sep='\t', skiprows=1)
+
+        df = self.update_df(raw_df, threshold=threshold)
+
+        #########################
+        # KDE TEST FOR Oa08 RED #
+        #########################
+        if kde:
+            if (len(df['Oa08_reflectance:float'].unique()) < 2) and (len(df) < 4):
+                file_id_date_name = os.path.basename(csv_path).split('____')[1].split('_')[0]
+                print(f'Skipping KDE stats for lack of data @ {file_id_date_name}')
+                return 'KDE_fail', file_id_date_name
+
+            x = df['Oa08_reflectance:float'].copy()
+            pk, xray, yray, kde_res = self.kde_local_maxima(x)
+            xmean = np.mean(x)
+            kdemaxes = [m for m in xray[pk]]
+            kdemaxes.append(xmean)
+            drop_threshold = min(kdemaxes)
+            drop_threshold_upper_lim = drop_threshold + (0.25 * drop_threshold)
+            # drop_threshold_lower_lim = drop_threshold - (0.25 * drop_threshold)
+
+            # Drop data outside bounds for drop_threshold:
+            indexNames = df[df['Oa08_reflectance:float'] > drop_threshold_upper_lim].index
+            df.drop(indexNames, inplace=True)
+            # indexNames = df[df['Oa08_reflectance:float'] < drop_threshold_lower_lim].index
+            # df.drop(indexNames, inplace=True)
+
+        #####################################
+        # Fix the indexing of the dataframe #
+        #####################################
         df.reset_index(drop=True, inplace=True)
 
         # Save V2
         if savepath:
             full_saving_path = os.path.join(savepath, os.path.basename(csv_path))
-            if len(df) > 0:
+            if len(df) > 3:
                 print(f'Saving dataset: {full_saving_path}')
                 df.to_csv(full_saving_path)
                 return full_saving_path, df
@@ -341,6 +394,9 @@ class TsGenerator():
 
     @staticmethod
     def get_mean_and_clean(image_path, threshold=None):
+        """
+        # TODO: Write docstrings.
+        """
         # read text file and convert to pandas dataframe
         df = pd.read_csv(image_path, sep='\t', skiprows=1)
         # # Columns to keep
@@ -379,7 +435,9 @@ class TsGenerator():
 
     @staticmethod
     def kde_local_maxima(x):
-
+        """
+        # TODO: Write docstrings.
+        """
         kernel = stats.gaussian_kde(dataset=x, bw_method='silverman')
 
         kde_res = kernel(x)
@@ -395,6 +453,9 @@ class TsGenerator():
 
     @staticmethod
     def get_mean_and_clean_v2(image_path):
+        """
+        # TODO: Write docstrings.
+        """
         # read text file and convert to pandas dataframe
         df = pd.read_csv(image_path)
 
@@ -547,7 +608,9 @@ class TsGenerator():
         return sorted_s3frbr_output_files
 
     def generate_time_series_data(self, work_dir, sorted_list):
-
+        """
+        # TODO: Write docstrings.
+        """
         Oa01_reflectance_tms = []
         Oa02_reflectance_tms = []
         Oa03_reflectance_tms = []
@@ -642,7 +705,9 @@ class TsGenerator():
         return d
 
     def generate_time_series_datav2(self, work_dir, sorted_list):
-
+        """
+        # TODO: Write docstrings.
+        """
         Oa01_reflectance_tms = []
         Oa02_reflectance_tms = []
         Oa03_reflectance_tms = []
@@ -790,8 +855,11 @@ class TsGenerator():
 
         return d
 
-    def s3l2_custom_reflectance_plot(self, df, figure_title, save_title=None):
-
+    def s3l2_custom_reflectance_plot(self, df, figure_title=None, save_title=None):
+        """
+        # TODO: Write docstrings.
+        """
+        plt.rcParams['figure.figsize'] = self.rcparam
         colnms = ['T865:float',
                   'Oa01_reflectance:float',
                   'Oa02_reflectance:float',
@@ -819,12 +887,14 @@ class TsGenerator():
         plt.rcParams['figure.figsize'] = [12, 6]
 
         fig = plt.figure()
-        fig.show()
+        # fig.show()
         ax1 = fig.add_subplot(111)
 
         ax1.set_xlabel('Wavelenght (nm)')
         ax1.set_ylabel('Reflectance')
-        ax1.set_title(figure_title, y=1, fontsize=16)
+
+        if figure_title:
+            ax1.set_title(figure_title, y=1, fontsize=16)
 
         # creating color scale based on T865
         lst = df['T865:float']
@@ -851,7 +921,7 @@ class TsGenerator():
         ax2.set_title('Sentinel-3 Oa Bands', y=0.93, x=0.12, fontsize='xx-small')
 
         if save_title:
-            plt.savefig(save_title, dpi=self.imgdpi)
+            plt.savefig(save_title, dpi=self.imgdpi, bbox_inches='tight')
         else:
             plt.show()
 
@@ -887,7 +957,70 @@ class TsGenerator():
         if not svpath_n_title:
             plt.show()
 
+    def plot_kde_histntable(self, xray, yray, x, kde_res, pk, title=None, svpath_n_title=None):
+        """
+        # TODO: Write docstrings.
+        """
+        plt.rcParams['figure.figsize'] = self.rcparam
+        fig = plt.figure()
+        # gridspec: https://stackoverflow.com/questions/10388462/matplotlib-different-size-subplots
+        gs = gridspec.GridSpec(1, 2, width_ratios=[2.5, 1])
+        gs.wspace = 0.01
+        ax = fig.add_subplot(gs[0])
+
+        if title:
+            ax.set_title(title, fontsize=16)
+
+        ax.plot(xray, yray, color='k', label='Fitted KDE', zorder=11)
+        ax.plot(xray[pk], yray[pk], 'or', zorder=11, label='KDE Local Maxima')
+        ax.hist(x, 100, color='lightblue', label='Histogram')
+        ax.scatter(x, kde_res, zorder=10, marker='x', label='Observations')
+
+        ax.set_xlabel('Reflectance - Oa08:665nm')
+        ax.set_ylabel('Frequency')
+
+        # Get the mean
+        ax.axvline(x.mean(), color='g', label='Mean')
+        # Get the std. dev.
+        ax.axvline(x=np.mean(x) - np.std(x), ls="--", color='g', alpha=0.7, label='Std.Deviation')
+        ax.axvline(x=np.mean(x) + np.std(x), ls="--", color='g', alpha=0.7)
+
+        ax.legend()
+
+        for m in xray[pk]:
+            ax.axvline(m, color='r')
+
+        ax2 = fig.add_subplot(gs[1])
+
+        cv = (np.std(x) / np.mean(x)) * 100
+        cv = round(cv, 6)
+        std = round(np.std(x), 6)
+        xmean = round(np.mean(x), 6)
+        kdemaxes = [round(m, 3) for m in xray[pk]]
+        # plt table: https://chadrick-kwag.net/matplotlib-table-example/
+        table_data = [
+            ["Mean", str(xmean)],
+            ["Std. Deviation", str(std)],
+            ["KDE Local max.", str(kdemaxes)],
+            ["Coeff. of variation", str(round(cv, 2))+'%']
+        ]
+
+        table = ax2.table(cellText=table_data, loc='center')
+        # table.set_fontsize(20)
+        table.scale(1, 1.5)
+        ax2.axis('off')
+
+        if svpath_n_title:
+            plt.savefig(svpath_n_title, dpi=self.imgdpi, bbox_inches='tight')
+            plt.close(fig)
+
+        if not svpath_n_title:
+            plt.show()
+
     def plot_single_sktr(self, xdata, ydata, xlabel, ylabel, color, clabel, title, savepathname):
+        """
+        # TODO: Write docstrings.
+        """
         plt.rcParams['figure.figsize'] = [9.4, 8]
         fig = plt.figure()
         ax = plt.axes()
@@ -916,6 +1049,9 @@ class TsGenerator():
     # GENERATES COMPARATIVE SCATTERPLOTS
     def plot_overlap_sktr(self, x1_data, y1_data, x2_data, y2_data, x_lbl, y_lbl, c1_data, c1_lbl, c2_data, c2_lbl, title,
                           savepathname):
+        """
+        # TODO: Write docstrings.
+        """
         plt.rcParams['figure.figsize'] = [12, 8]
         fig = plt.figure()
         ax = plt.axes()
@@ -945,44 +1081,18 @@ class TsGenerator():
         plt.close(fig)
 
     # GENERATES COMPARATIVE SCATTERPLOTS
-    def plot_overlap_sktr(self, x1_data, y1_data, x2_data, y2_data, x_lbl, y_lbl, c1_data, c1_lbl, c2_data, c2_lbl, title,
-                          savepathname):
-        plt.rcParams['figure.figsize'] = [12, 8]
-        fig = plt.figure()
-        ax = plt.axes()
-        ax.set_title(title)
-
-        img = ax.scatter(x2_data, y2_data, s=5, c=c2_data, cmap='winter_r')
-        cbar = fig.colorbar(img, ax=ax)
-        cbar.set_label(c2_lbl)
-
-        img = ax.scatter(x1_data, y1_data, s=5, c=c1_data, cmap='autumn_r')
-        cbar = fig.colorbar(img, ax=ax)
-        cbar.set_label(c1_lbl)
-
-        ax.plot([-1, 1], [-1, 1], 'k-', linewidth=1)
-        ax.plot([0, 0], [-1, 1], c='grey', linestyle='dashed', linewidth=1)
-        ax.plot([-1, 1], [0, 0], c='grey', linestyle='dashed', linewidth=1)
-
-        ax.set_xlabel(x_lbl)  # RED: Oa08 (865nm)
-        ax.set_ylabel(y_lbl)  # NIR: Oa17 (665nm)
-
-        ax.set_xlim(-0.02, 0.2)
-        ax.set_ylim(-0.02, 0.2)
-        plt.text(0.160, 0.003, '% Reflectance')
-
-        plt.savefig(savepathname, dpi=self.imgdpi)
-
-        plt.close(fig)
-
-    # GENERATES COMPARATIVE SCATTERPLOTS
-    def plot_sidebyside_sktr(self, x1_data, y1_data, x2_data, y2_data, x_lbl, y_lbl, c1_data, c1_lbl, c2_data, c2_lbl, title,
+    def plot_sidebyside_sktr(self,
+                             x1_data, y1_data, x2_data, y2_data, x_lbl, y_lbl, c1_data, c1_lbl, c2_data, c2_lbl,
+                             title=None,
                              savepathname=None):
-
+        """
+        # TODO: Write docstrings.
+        """
         plt.rcParams['figure.figsize'] = [14, 5.2]
-
         fig, (ax1, ax2) = plt.subplots(1, 2)
-        fig.suptitle(title)
+
+        if title:
+            fig.suptitle(title)
 
         skt1 = ax1.scatter(x1_data, y1_data, s=3, c=c1_data, cmap='viridis')
         cbar = fig.colorbar(skt1, ax=ax1)
@@ -1015,13 +1125,16 @@ class TsGenerator():
         ax2.set_ylim(-0.02, 0.2)
 
         if savepathname:
-            plt.savefig(savepathname, dpi=self.imgdpi)
+            plt.savefig(savepathname, dpi=self.imgdpi, bbox_inches='tight')
             plt.close(fig)
 
         if not savepathname:
             plt.show()
 
     def plot_time_series(self, tms_dict, tms_key, fig_title, save_title=None):
+        """
+        # TODO: Write docstrings.
+        """
         plt.rcParams['figure.figsize'] = [16, 6]
         # fig = plt.figure()
         ax = plt.axes()
@@ -1035,7 +1148,9 @@ class TsGenerator():
         plt.show()
 
     def plot_multiple_time_series(self, tms_dict, tms_keys, fig_title, save_title=None):
-
+        """
+        # TODO: Write docstrings.
+        """
         plt.rcParams['figure.figsize'] = [16, 6]
         fig = plt.figure()
         ax = plt.axes()
@@ -1050,20 +1165,186 @@ class TsGenerator():
         plt.show()
 
     def plot_ts_from_csv(self, csv_path, tms_key, fig_title, save_title=None):
+        """
+        # TODO: Write docstrings.
+        """
         tms_dict = pd.read_csv(csv_path, parse_dates=['Datetime'])
         self.plot_time_series(tms_dict, tms_key, fig_title, save_title)
 
     def plot_multi_ts_from_csv(self, csv_path, tms_keys, fig_title, save_title=None):
+        """
+        # TODO: Write docstrings.
+        """
         tms_dict = pd.read_csv(csv_path, parse_dates=['Datetime'])
         self.plot_multiple_time_series(tms_dict, tms_keys, fig_title, save_title)
 
     @staticmethod
     def save_tms_to_csv(tms_dicst, csv_file_name):
+        """
+        # TODO: Write docstrings.
+        """
         logging.info(f'Saving time-series DataFrame @ {csv_file_name}')
         df = pd.DataFrame(data=tms_dicst)
         df.to_csv(csv_file_name)
         logging.info(f'Done.')
 
+    def raw_report(self, full_csv_path, img_id_date, raw_df, filtered_df, output_rprt_path=None):
+        """
+        This function will ingest RAW CSVs from S3-FRBR > outsourcing.py > GPTBridge.get_pixels_by_kml(), convert them
+        into Pandas DataFrames, filter them and generate a PDF report.
+
+        # TODO: Update docstrings.
+        """
+
+        figdate = img_id_date
+        df = raw_df
+        fdf = filtered_df
+        RAW_CSV = full_csv_path
+
+        if output_rprt_path:
+            aux_figs_path = os.path.join(output_rprt_path, 'aux_'+figdate)
+
+        else:
+            aux_figs_path = os.path.join(RAW_CSV, 'aux_'+figdate)
+
+        os.mkdir(aux_figs_path)
+
+        # Generating the saving path of the individual report images so we can fetch it later.
+        svpt1 = os.path.join(aux_figs_path, 'a.png')
+        svpt2 = os.path.join(aux_figs_path, 'b.png')
+        svpt3 = os.path.join(aux_figs_path, 'c.png')
+        svpt4 = os.path.join(aux_figs_path, 'd.png')
+        svpt5 = os.path.join(aux_figs_path, 'e.png')
+        svpt_report = os.path.join(output_rprt_path, 'report_'+figdate+'.pdf')
+
+        # IMG A - Scatter MAP
+        plt.rcParams['figure.figsize'] = self.rcparam
+        fig = plt.figure()
+        ax = plt.axes()
+        ax.set_title(figdate, fontsize=16)
+        sktmap = ax.scatter(df['longitude:double'], df['latitude:double'], c=df['T865:float'], cmap='viridis', s=3)
+        cbar = fig.colorbar(sktmap, ax=ax)
+        cbar.set_label('Aer. Optical Thickness (T865)')
+
+        ax.set_xlim(-61.34, -60.46)
+        ax.set_ylim(-3.65, -3.25)
+        ax.set_xlabel('LON')
+        ax.set_ylabel('LAT')
+
+        plt.savefig(svpt1, dpi=self.imgdpi, bbox_inches='tight')
+
+        # IMG B - RAW Scatter
+        self.plot_sidebyside_sktr(x1_data=df['Oa08_reflectance:float'],
+                                   y1_data=df['Oa17_reflectance:float'],
+                                   x2_data=df['Oa08_reflectance:float'],
+                                   y2_data=df['Oa17_reflectance:float'],
+                                   x_lbl='RED: Oa08 (665nm)',
+                                   y_lbl='NIR: Oa17 (865nm)',
+                                   c1_data=df['A865:float'],
+                                   c1_lbl='Aer. Angstrom Expoent (A865)',
+                                   c2_data=df['T865:float'],
+                                   c2_lbl='Aer. Optical Thickness (T865)',
+                                   # title=f'MANACAPURU v6 WFR {figdate} RED:Oa08(665nm) x NIR:Oa17(865nm)',
+                                   savepathname=svpt2)
+
+        # IMG C - Filtered Scatter
+        self.plot_sidebyside_sktr(x1_data=fdf['Oa08_reflectance:float'],
+                                   y1_data=fdf['Oa17_reflectance:float'],
+                                   x2_data=fdf['Oa08_reflectance:float'],
+                                   y2_data=fdf['Oa17_reflectance:float'],
+                                   x_lbl='RED: Oa08 (665nm)',
+                                   y_lbl='NIR: Oa17 (865nm)',
+                                   c1_data=fdf['A865:float'],
+                                   c1_lbl='Aer. Angstrom Expoent (A865)',
+                                   c2_data=fdf['T865:float'],
+                                   c2_lbl='Aer. Optical Thickness (T865)',
+                                   # title=f'MANACAPURU v6 WFR {figdate} RED:Oa08(665nm) x NIR:Oa17(865nm)',
+                                   savepathname=svpt3)
+
+        # IMG C - KD Histogram
+        x = fdf['Oa08_reflectance:float'].copy()
+
+        pk, xray, yray, kde_res = self.kde_local_maxima(x)
+
+        self.plot_kde_histntable(xray=xray,
+                                 yray=yray,
+                                 x=x,
+                                 kde_res=kde_res,
+                                 pk=pk,
+                                 svpath_n_title=svpt4)
+
+        # IMG D - Reflectance
+        self.s3l2_custom_reflectance_plot(df=fdf,
+                                          # figure_title=figdate,
+                                          save_title=svpt5)
+
+        # Report
+        images = [Image.open(x) for x in [svpt1, svpt2, svpt3, svpt4, svpt5]]
+        report = utils.pil_grid(images, 1)
+
+        if output_rprt_path:
+            report.save(svpt_report, resolution=100.0)
+
+        plt.close('all')
+
+        return report
+
+    def full_reports(self, raw_csv_dir, save_reports_dir):
+        """
+        Given a path of RAW Sentinel3 CSV subsets, filter and generate reports.
+        """
+        todo = self.build_list_from_subset(raw_csv_dir)
+        todo_fullpath = [os.path.join(raw_csv_dir, csv) for csv in todo]
+
+        t1 = time.perf_counter()
+        skiplst = []
+        donelst = []
+        img_report_list = []
+
+        total = len(todo_fullpath)
+        for n, img in enumerate(todo_fullpath):
+
+            figdate = os.path.basename(img).split('____')[1].split('_')[0]
+
+            print(f'>>> Loading CSV: {n + 1} of {total} ... {figdate}')
+
+            df = pd.read_csv(img, sep='\t', skiprows=1)
+
+            # TODO: There should not need to be 2 tests doing the same thing :(
+            try:
+                upd_msg, fdf = self.update_csvs(csv_path=img, threshold=0.2)
+            except Exception as e:
+                print("type error: " + str(e))
+                skiplst.append(img)
+                continue
+
+            # The KDE needs at least two different reflectance values to work.
+            if upd_msg == 'KDE_fail':
+                skiplst.append(img)
+                continue
+
+            donelst.append(img)
+            img_report = self.raw_report(full_csv_path=img,
+                                         img_id_date=figdate,
+                                         raw_df=df,
+                                         filtered_df=fdf,
+                                         output_rprt_path=save_reports_dir)
+
+            img_report_list.append(img_report)
+
+        print('Merging images to generate full report...')
+
+        pdf_report_filename = os.path.join(save_reports_dir, 'full_report.pdf')
+
+        img_report_list[0].save(pdf_report_filename,
+                                "PDF",
+                                resolution=100.0,
+                                save_all=True,
+                                append_images=img_report_list[1:])
+
+        t2 = time.perf_counter()
+        print(f'>>> Finished in {round(t2 - t1, 2)} second(s). <<<')
+        return skiplst, donelst
 
 if __name__ == '__main__':
     logging.info(f'Arguments received:\n{sys.argv}\n')

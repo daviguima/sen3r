@@ -130,7 +130,7 @@ class SNAPPYBridge:
 
 class GPTBridge:
     """
-    So what this class actually does is to dynamically create an <xml> file that later will be embedded in
+    This class dynamically create an <xml> file that later will be embedded in
     a SNAP-GPT function call made from the python os.popen library.
 
     Arguments:
