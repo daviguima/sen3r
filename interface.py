@@ -134,8 +134,8 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "S3-FRBR"))
-        self.label_7.setText(_translate("MainWindow", "S3-FRBR is a Sentinel-3 toolbox based on MOD3R"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "SEN3R"))
+        self.label_7.setText(_translate("MainWindow", "SEN3R is a Sentinel-3 toolbox based on MOD3R"))
         self.pushButton.setText(_translate("MainWindow", "Atmospheric correction with iCOR from ESA-SNAP "))
         self.pushButton_2.setText(_translate("MainWindow", "Download Sentinel-3 files (copernicus/eumetsat)"))
         self.pushButton_3.setText(_translate("MainWindow", "Extract pixels from KML / SHP "))
@@ -143,7 +143,7 @@ class Ui_MainWindow(object):
         self.label.setText(_translate("MainWindow", "SO-HYBAM Amazon Basin Water Resources Observation Service - 2020 ©"))
         self.menuAbout.setTitle(_translate("MainWindow", "Help"))
         self.actionAbout.setText(_translate("MainWindow", "About"))
-        self.actionVersion_1_0_Beta.setText(_translate("MainWindow", "Version 1.0 Beta"))
+        self.actionVersion_1_0_Beta.setText(_translate("MainWindow", "Version 0.0.1 Alpha"))
 
 
 if __name__ == "__main__":

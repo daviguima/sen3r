@@ -20,7 +20,8 @@ import matplotlib
 import matplotlib.cm as cm
 from nc_explorer import NcExplorer
 
-class TsGenerator():
+
+class TsGenerator:
 
     def __init__(self):
         # Setting up information logs
@@ -250,8 +251,8 @@ class TsGenerator():
         ################################
         # FILTER NEGATIVE REFLECTANCES #
         ################################
-        # df.loc[df['Oa01_reflectance:float'] < 0, 'Oa01_reflectance:float'] = np.nan
-        # df.loc[df['Oa02_reflectance:float'] < 0, 'Oa02_reflectance:float'] = np.nan
+        df.loc[df['Oa01_reflectance:float'] < 0, 'Oa01_reflectance:float'] = np.nan
+        df.loc[df['Oa02_reflectance:float'] < 0, 'Oa02_reflectance:float'] = np.nan
         df.loc[df['Oa03_reflectance:float'] < 0, 'Oa03_reflectance:float'] = np.nan
         df.loc[df['Oa04_reflectance:float'] < 0, 'Oa04_reflectance:float'] = np.nan
         df.loc[df['Oa05_reflectance:float'] < 0, 'Oa05_reflectance:float'] = np.nan
@@ -322,7 +323,7 @@ class TsGenerator():
         # df.reset_index(drop=True, inplace=True)
 
         # Calculate GLINT for DF
-        print('Calculating GLINT column...')
+        # print('Calculating GLINT column...')
         df = self.get_glint(df)
 
         return df
@@ -855,7 +856,7 @@ class TsGenerator():
 
         return d
 
-    def s3l2_custom_reflectance_plot(self, df, figure_title=None, save_title=None):
+    def s3l2_custom_reflectance_plot(self, df, figure_title=None, save_title=None, cbar=False):
         """
         # TODO: Write docstrings.
         """
@@ -897,11 +898,13 @@ class TsGenerator():
             ax1.set_title(figure_title, y=1, fontsize=16)
 
         # creating color scale based on T865
-        lst = df['T865:float']
+        # lst = df['T865:float']
+        lst = df['minus_cams']
         minima = min(lst)
         maxima = max(lst)
         norm = matplotlib.colors.Normalize(vmin=minima, vmax=maxima, clip=True)
         mapper = cm.ScalarMappable(norm=norm, cmap=cm.viridis)
+        # mapper = cm.ScalarMappable(norm=norm, cmap=cm.Spectral_r)
 
         for _, row in df[colnms].iterrows():
             # ax1.plot(s3_bands_tick, list(row))
@@ -919,6 +922,10 @@ class TsGenerator():
         ax2.set_xticklabels(s3_bands_tick_label)
         ax2.tick_params(labelrotation=90, labelsize='xx-small')
         ax2.set_title('Sentinel-3 Oa Bands', y=0.93, x=0.12, fontsize='xx-small')
+
+        if cbar:
+            cbar = fig.colorbar(ax2, ax=ax2)
+            cbar.set_label(c1_lbl)
 
         if save_title:
             plt.savefig(save_title, dpi=self.imgdpi, bbox_inches='tight')
@@ -1083,6 +1090,7 @@ class TsGenerator():
     # GENERATES COMPARATIVE SCATTERPLOTS
     def plot_sidebyside_sktr(self,
                              x1_data, y1_data, x2_data, y2_data, x_lbl, y_lbl, c1_data, c1_lbl, c2_data, c2_lbl,
+                             cmap1='viridis', cmap2='viridis',
                              title=None,
                              savepathname=None):
         """
@@ -1094,11 +1102,11 @@ class TsGenerator():
         if title:
             fig.suptitle(title)
 
-        skt1 = ax1.scatter(x1_data, y1_data, s=3, c=c1_data, cmap='viridis')
+        skt1 = ax1.scatter(x1_data, y1_data, s=3, c=c1_data, cmap=cmap1)
         cbar = fig.colorbar(skt1, ax=ax1)
         cbar.set_label(c1_lbl)
 
-        skt2 = ax2.scatter(x2_data, y2_data, s=3, c=c2_data, cmap='viridis')
+        skt2 = ax2.scatter(x2_data, y2_data, s=3, c=c2_data, cmap=cmap2)
         cbar = fig.colorbar(skt2, ax=ax2)
         cbar.set_label(c2_lbl)
 

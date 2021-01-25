@@ -1,18 +1,20 @@
 import os
 import sys
-# import logging
 import utils
 import numpy as np
 import matplotlib.pyplot as plt
-from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
+import netCDF4 as nc
+
 
 # logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S', level=logging.DEBUG)
 
 try:
     from mpl_toolkits.basemap import Basemap
 except:
-    logging.info('from mpl_toolkits.basemap import Basemap FAILED! '
+    print('sen3r-NcExplorer: from mpl_toolkits.basemap import Basemap FAILED!'
           'You can still proceed without plotting any maps.')
+    # logging.info('from mpl_toolkits.basemap import Basemap FAILED! '
+    #       'You can still proceed without plotting any maps.')
 
 
 class NcExplorer:
@@ -23,12 +25,12 @@ class NcExplorer:
         self.nc_folder = input_nc_folder
         self.verbose = verbose
         self.os = os.name
-        self.class_label = 'S3-FRBR:Nc_Explorer'
+        self.class_label = 'SEN3R:Nc_Explorer'
         print(f'Declaring class instance from: {self.class_label}')
         if self.verbose:
             print(f'Verbose set to True.')
         if self.nc_folder is None:
-            print(f'Input NetCDF file folde not set. Proceed at your own risk.')
+            print(f'Input NetCDF file folder not set. Proceed at your own risk.')
 
     s3_bands_l1 = {'Oa01': 400,
                    'Oa02': 412.5,
@@ -168,7 +170,7 @@ class NcExplorer:
         plt.show()
         # plt.figure()
 
-    def get_valid_band_files(self):
+    def get_valid_band_files(self, rad_only=True):
         # TODO: write docstrings
         if self.nc_folder is None:
             print('Unable to find files if NetCDF image folder is not defined during NcExplorer class instance.')
@@ -182,8 +184,11 @@ class NcExplorer:
         # extract only NetCDFs from the file list
         nc_files = [f for f in files if f.endswith('.nc')]
 
+
         # extract only the radiometric bands from the NetCDF list
         nc_bands = [b for b in nc_files if b.startswith('Oa')]
+
+
 
         if self.verbose:
             print(f'{self.class_label}.get_valid_band_files()\n'
@@ -193,7 +198,10 @@ class NcExplorer:
                   f'Total NetCDF files: {len(nc_files)}\n'
                   f'Total S3 "Oa" bands: {len(nc_bands)}\n')
 
-        return nc_bands
+        if rad_only:
+            return nc_bands
+        else:
+            return nc_files
 
     def get_point_data_in_bands(self, bands_dictionary, lon=None, lat=None, target_lon=None, target_lat=None):
         # TODO: write docstrings
@@ -279,7 +287,7 @@ class NcExplorer:
         Assumes the NetCDF file to be a valid Sentinel-3 band file, like the one below:
         D:\S3\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3\Oa01_radiance.nc
         '''
-        nc_file = Dataset(full_nc_path, 'r')
+        nc_file = nc.Dataset(full_nc_path, 'r')
         if self.os == "nt":  # TODO: fix OS compatibility
             bname = full_nc_path.split('\\')
         else:
@@ -310,7 +318,7 @@ class NcExplorer:
         else:
             coords_file = '/geo_coordinates.nc'
 
-        nc_coord = Dataset(netcdf_files_folder + coords_file, 'r')
+        nc_coord = nc.Dataset(netcdf_files_folder + coords_file, 'r')
 
         lat = nc_coord.variables['latitude'][:]
         lat = lat.data

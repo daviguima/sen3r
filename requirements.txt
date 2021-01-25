@@ -9,6 +9,5 @@ pyshp
 netcdf4
 pillow
 OWSLib
-jupyter
 rasterstats
 pyqt5-tools
