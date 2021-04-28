@@ -27,9 +27,10 @@ class TsGenerator:
         # Setting up information logs
         logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S', level=logging.INFO)
 
-    exp = NcExplorer()
+    exp = NcExplorer(external_use=True)
     imgdpi = 100
     rcparam = [14, 5.2]
+    glint = 12.0
 
     bname_dict = {'B1-400': 'Oa01: 400 nm',
                   'B2-412.5': 'Oa02: 412.5 nm',
@@ -153,10 +154,9 @@ class TsGenerator:
               'AC_FAIL',
               'MEGLINT',  # experimental
               'HIGHGLINT',  # experimental
-              'ADJAC',
               'LOWRW']  # experimental
 
-    # LOWRW # experimental
+    # 'ADJAC',  # Meaningless – reserved for future use.
 
     # MUST HAVE
     keep = ['INLAND_WATER']
@@ -183,7 +183,6 @@ class TsGenerator:
         https://www.sciencedirect.com/science/article/pii/S0034425703001846
         https://doi.org/10.1016/S0034-4257(03)00184-6
         """
-
         df['GLINT'] = np.degrees(np.arccos(np.cos(np.deg2rad(df['OZA:float'])) *
                                            np.cos(np.deg2rad(df['SZA:float'])) -
                                            np.sin(np.deg2rad(df['OZA:float'])) *
@@ -195,15 +194,6 @@ class TsGenerator:
 
         return df
 
-    @staticmethod
-    def get_pct_valid(df, total_ini):
-        """
-        # TODO: Write docstrings.
-        """
-        total_end = len(df)
-        df['PCTVLDPX'] = (total_end * 100) / total_ini
-        return df
-
     def add_flags_to_df(self, df):
         """
         # TODO: Write docstrings.
@@ -212,19 +202,26 @@ class TsGenerator:
         df['QUALITY'] = df['FLAGS'].apply(self.get_quality)
         return df
 
-    def update_df(self, df, threshold=False):
+    def update_df(self, df, ir_min_threshold=False, ir_max_threshold=False, max_aot=False):
 
         # Delete indexes for which Oa01_reflectance is saturated:
         indexNames = df[df['Oa01_reflectance:float'] == 1.0000184].index
         df.drop(indexNames, inplace=True)
 
-        # This should represent 100% of the pixels inside the SHP area.
-        df['PCTVLDPX'] = len(df)
+        # This should represent 100% of the pixels inside the SHP area before applying the filters.
+        df['ABSVLDPX'] = len(df)
+
+        # In case the reflectance of water pixels should not be below 0.001
+        # in the NIR Band (Oa17:865nm), we will drop using the threshold:
+        if ir_min_threshold:
+            indexNames = df[df['Oa17_reflectance:float'] < ir_min_threshold].index
+            # Delete these row indexes from dataFrame
+            df.drop(indexNames, inplace=True)
 
         # Assuming that the reflectance of water pixels should not be above 0.2
         # in the NIR Band (Oa17:865nm), we will drop using the threshold:
-        if threshold:
-            indexNames = df[df['Oa17_reflectance:float'] > threshold].index
+        if ir_max_threshold:
+            indexNames = df[df['Oa17_reflectance:float'] > ir_max_threshold].index
             # Delete these row indexes from dataFrame
             df.drop(indexNames, inplace=True)
 
@@ -243,30 +240,30 @@ class TsGenerator:
         # indexNames = df[df['GLINT'] < 25].index
         # df.drop(indexNames, inplace=True)
 
-        # Get names of indexes for which T865 (Aerosol optical depth) is thicker than 0.6
-        indexNames = df[df['T865:float'] >= 0.6].index
-        # Delete these row indexes from dataFrame
-        df.drop(indexNames, inplace=True)
+        if max_aot:  # 0.6
+            # Delete the indexes for which T865 (Aerosol optical depth) is thicker than 0.6
+            indexNames = df[df['T865:float'] >= max_aot].index
+            df.drop(indexNames, inplace=True)
 
         ################################
         # FILTER NEGATIVE REFLECTANCES #
         ################################
-        df.loc[df['Oa01_reflectance:float'] < 0, 'Oa01_reflectance:float'] = np.nan
-        df.loc[df['Oa02_reflectance:float'] < 0, 'Oa02_reflectance:float'] = np.nan
-        df.loc[df['Oa03_reflectance:float'] < 0, 'Oa03_reflectance:float'] = np.nan
-        df.loc[df['Oa04_reflectance:float'] < 0, 'Oa04_reflectance:float'] = np.nan
-        df.loc[df['Oa05_reflectance:float'] < 0, 'Oa05_reflectance:float'] = np.nan
-        df.loc[df['Oa06_reflectance:float'] < 0, 'Oa06_reflectance:float'] = np.nan
-        df.loc[df['Oa07_reflectance:float'] < 0, 'Oa07_reflectance:float'] = np.nan
-        df.loc[df['Oa08_reflectance:float'] < 0, 'Oa08_reflectance:float'] = np.nan
-        df.loc[df['Oa09_reflectance:float'] < 0, 'Oa09_reflectance:float'] = np.nan
-        df.loc[df['Oa10_reflectance:float'] < 0, 'Oa10_reflectance:float'] = np.nan
-        df.loc[df['Oa11_reflectance:float'] < 0, 'Oa11_reflectance:float'] = np.nan
-        df.loc[df['Oa12_reflectance:float'] < 0, 'Oa12_reflectance:float'] = np.nan
-        df.loc[df['Oa16_reflectance:float'] < 0, 'Oa16_reflectance:float'] = np.nan
-        df.loc[df['Oa17_reflectance:float'] < 0, 'Oa17_reflectance:float'] = np.nan
-        df.loc[df['Oa18_reflectance:float'] < 0, 'Oa18_reflectance:float'] = np.nan
-        df.loc[df['Oa21_reflectance:float'] < 0, 'Oa21_reflectance:float'] = np.nan
+        # df.loc[df['Oa01_reflectance:float'] < 0, 'Oa01_reflectance:float'] = np.nan
+        # df.loc[df['Oa02_reflectance:float'] < 0, 'Oa02_reflectance:float'] = np.nan
+        # df.loc[df['Oa03_reflectance:float'] < 0, 'Oa03_reflectance:float'] = np.nan
+        # df.loc[df['Oa04_reflectance:float'] < 0, 'Oa04_reflectance:float'] = np.nan
+        # df.loc[df['Oa05_reflectance:float'] < 0, 'Oa05_reflectance:float'] = np.nan
+        df.loc[df['Oa06_reflectance:float'] <= 0, 'Oa06_reflectance:float'] = np.nan
+        df.loc[df['Oa07_reflectance:float'] <= 0, 'Oa07_reflectance:float'] = np.nan
+        df.loc[df['Oa08_reflectance:float'] <= 0, 'Oa08_reflectance:float'] = np.nan
+        df.loc[df['Oa09_reflectance:float'] <= 0, 'Oa09_reflectance:float'] = np.nan
+        df.loc[df['Oa10_reflectance:float'] <= 0, 'Oa10_reflectance:float'] = np.nan
+        # df.loc[df['Oa11_reflectance:float'] < 0, 'Oa11_reflectance:float'] = np.nan
+        # df.loc[df['Oa12_reflectance:float'] < 0, 'Oa12_reflectance:float'] = np.nan
+        # df.loc[df['Oa16_reflectance:float'] < 0, 'Oa16_reflectance:float'] = np.nan
+        df.loc[df['Oa17_reflectance:float'] <= 0, 'Oa17_reflectance:float'] = np.nan
+        # df.loc[df['Oa18_reflectance:float'] < 0, 'Oa18_reflectance:float'] = np.nan
+        # df.loc[df['Oa21_reflectance:float'] < 0, 'Oa21_reflectance:float'] = np.nan
 
         ###############################
         # DROP EVERY NAN REFLECTANCES #
@@ -274,10 +271,17 @@ class TsGenerator:
         df = df.dropna()
 
         # Oa16 must always be above Oa12, for Oa12 is an atmospheric attenuation window
-        df = df[df['Oa16_reflectance:float'] > df['Oa12_reflectance:float']]
+        # df = df[df['Oa16_reflectance:float'] > df['Oa12_reflectance:float']]
 
         # Oa11 must always be higher than Oa12
         df = df[df['Oa11_reflectance:float'] > df['Oa12_reflectance:float']]
+
+        ##########################
+        # Calculate GLINT for DF #
+        ##########################
+        df = self.get_glint(df)
+        row_idx = df[df['GLINT'] <= self.glint].index
+        df.drop(row_idx, inplace=True)
 
         ############################
         # CLASS TEST FOR T865/A865 #
@@ -320,15 +324,16 @@ class TsGenerator:
         #####################################
         # Fix the indexing of the dataframe #
         #####################################
-        # df.reset_index(drop=True, inplace=True)
-
-        # Calculate GLINT for DF
-        # print('Calculating GLINT column...')
-        df = self.get_glint(df)
+        df.reset_index(drop=True, inplace=True)
 
         return df
-
-    def update_csvs(self, csv_path, savepath=False, threshold=False, kde=False):
+    # manacapuru 0.2
+    # negro 0.001
+    def update_csvs(self, csv_path, glint=12.0, savepath=False,
+                    ir_min_threshold=False,
+                    ir_max_threshold=0.2,
+                    max_aot=0.6,
+                    kde=False, GPT=False, cams_val=False):
         """
         Given an CSV of pixels extracted using GPT(SNAP), filter the dataset and add some new columns.
 
@@ -344,11 +349,35 @@ class TsGenerator:
         Output:
             df (pandas dataframe): in-memory version of the input data that was read and modified from csv_path.
         """
-
         # read text file and convert to pandas dataframe
-        raw_df = pd.read_csv(csv_path, sep='\t', skiprows=1)
+        if GPT:
+            raw_df = pd.read_csv(csv_path, sep='\t', skiprows=1)
+        else:
+            raw_df = pd.read_csv(csv_path, sep=',')
+        self.glint = glint
+        df = self.update_df(df=raw_df,
+                            ir_min_threshold=ir_min_threshold,
+                            ir_max_threshold=ir_max_threshold,
+                            max_aot=max_aot)
 
-        df = self.update_df(raw_df, threshold=threshold)
+        ##############
+        # CAMS PROXY #
+        ##############
+        if cams_val:
+            # compute simple agreement:
+            df['aot-cams'] = df['T865:float'] - cams_val
+            # get the position of the clusters:
+            if (len(df['Oa08_reflectance:float'].unique()) < 2) and (len(df) < 4):
+                file_id_date_name = os.path.basename(csv_path).split('____')[1].split('_')[0]
+                print(f'Skipping KDE stats for lack of data @ {file_id_date_name}')
+                return 'KDE_fail', file_id_date_name
+
+            x = df['Oa08_reflectance:float'].copy()
+            pk, xray, yray, kde_res = self.kde_local_maxima(x)
+            xmean = np.mean(x)
+            kdemaxes = [m for m in xray[pk]]
+            kdemaxes.append(xmean)
+            drop_threshold = min(kdemaxes)
 
         #########################
         # KDE TEST FOR Oa08 RED #
@@ -365,7 +394,8 @@ class TsGenerator:
             kdemaxes = [m for m in xray[pk]]
             kdemaxes.append(xmean)
             drop_threshold = min(kdemaxes)
-            drop_threshold_upper_lim = drop_threshold + (0.25 * drop_threshold)
+            drop_threshold_upper_lim = drop_threshold + (0.1 * drop_threshold)
+            # drop_threshold_upper_lim = drop_threshold + (0.25 * drop_threshold)
             # drop_threshold_lower_lim = drop_threshold - (0.25 * drop_threshold)
 
             # Drop data outside bounds for drop_threshold:
@@ -382,57 +412,19 @@ class TsGenerator:
         # Save V2
         if savepath:
             full_saving_path = os.path.join(savepath, os.path.basename(csv_path))
-            if len(df) > 3:
-                print(f'Saving dataset: {full_saving_path}')
-                df.to_csv(full_saving_path)
-                return full_saving_path, df
-            else:
-                print(f'Skipping empty dataset: {os.path.basename(csv_path)}')
-                return full_saving_path, df
+            print(f'Saving dataset: {full_saving_path}')
+            df.to_csv(full_saving_path)
+            return full_saving_path, df
+            # if len(df) > 3:
+            #     print(f'Saving dataset: {full_saving_path}')
+            #     df.to_csv(full_saving_path)
+            #     return full_saving_path, df
+            # else:
+            #     print(f'Skipping empty dataset: {os.path.basename(csv_path)}')
+            #     return full_saving_path, df
 
         else:
             return 'unsaved', df
-
-    @staticmethod
-    def get_mean_and_clean(image_path, threshold=None):
-        """
-        # TODO: Write docstrings.
-        """
-        # read text file and convert to pandas dataframe
-        df = pd.read_csv(image_path, sep='\t', skiprows=1)
-        # # Columns to keep
-        keep = ['Oa01_reflectance:float',
-                'Oa02_reflectance:float',
-                'Oa03_reflectance:float',
-                'Oa04_reflectance:float',
-                'Oa05_reflectance:float',
-                'Oa06_reflectance:float',
-                'Oa07_reflectance:float',
-                'Oa08_reflectance:float',
-                'Oa09_reflectance:float',
-                'Oa10_reflectance:float',
-                'Oa11_reflectance:float',
-                'Oa12_reflectance:float',
-                'Oa16_reflectance:float',
-                'Oa17_reflectance:float',
-                'Oa18_reflectance:float',
-                'Oa21_reflectance:float',
-                'latitude:double',
-                'longitude:double']
-        # Drop columns not present in the list
-        df = df.filter(keep)
-        # Get names of indexes for which column LON has value 0
-        indexNames = df[df['longitude:double'] == 0].index
-        # Delete these row indexes from dataFrame
-        df.drop(indexNames, inplace=True)
-        # Assuming the reflectance of water pixels should not be above 0.16 (Oa08:665nm), we will drop using this threshold
-        if threshold:
-            indexNames = df[df['Oa08_reflectance:float'] > threshold].index
-            # Delete these row indexes from dataFrame
-            df.drop(indexNames, inplace=True)
-        # drop lon/lat columns
-        df = df.drop(['latitude:double', 'longitude:double'], axis=1)
-        return df.mean(skipna=True)
 
     @staticmethod
     def kde_local_maxima(x):
@@ -453,7 +445,7 @@ class TsGenerator:
         return peak_position, xray, yray, kde_res
 
     @staticmethod
-    def get_mean_and_clean_v2(image_path):
+    def get_mean_and_clean(image_path):
         """
         # TODO: Write docstrings.
         """
@@ -486,54 +478,99 @@ class TsGenerator:
                 'A865:float',
                 'T865:float',
                 'GLINT',
-                'PCTVLDPX']
+                'ABSVLDPX']
 
         # Drop columns not present in the list
         df = df.filter(keep)
 
         # get the std deviation of the specific column
         glintstd = df.loc[:, 'GLINT'].std(skipna=True)
-
-        # get the % of valid pixels in DF
-        validpx = df['PCTVLDPX'][0]
-        pctvalidpx = (len(df) * 100) / validpx
-
-        # drop lon/lat columns
-        df = df.drop(['latitude:double', 'longitude:double', 'PCTVLDPX'], axis=1)
-
         result_dict = {}
-        for colname in df:
-            result_dict[colname] = df[colname].mean(skipna=True)
 
-        result_dict['AbsVldPx'] = validpx
-        result_dict['VldPx.pct'] = pctvalidpx
-        result_dict['GLINT.std'] = glintstd
+        if len(df) > 0:
+            # get the % of valid pixels in DF
+            validpx = df['ABSVLDPX'][0]
+            pctvalidpx = (len(df) * 100) / validpx
 
-        # https://sentinel.esa.int/web/sentinel/technical-guides/sentinel-3-olci/level-2/aerosol-optical-thickness
-        t865_desc = df.loc[:, 'T865:float'].describe()
+            # drop lon/lat columns
+            df = df.drop(['latitude:double', 'longitude:double', 'ABSVLDPX'], axis=1)
 
-        result_dict['T865.count'], \
-        result_dict['T865.mean'], \
-        result_dict['T865.std'], \
-        result_dict['T865.min'], \
-        result_dict['T865.25%ile'], \
-        result_dict['T865.50%ile'], \
-        result_dict['T865.75%ile'], \
-        result_dict['T865.max'] = list(t865_desc)
+            for colname in df:
+                result_dict[colname] = df[colname].mean(skipna=True)
 
-        # https://sentinel.esa.int/web/sentinel/technical-guides/sentinel-3-olci/level-2/aerosol-angstrom-exponent
-        a865_desc = df.loc[:, 'A865:float'].describe()
+            result_dict['median_IR'] = np.nanmedian(df['Oa17_reflectance:float'])
+            result_dict['AbsVldPx'] = validpx
+            result_dict['VldPx.pct'] = pctvalidpx
+            result_dict['GLINT.std'] = glintstd
 
-        result_dict['A865.count'], \
-        result_dict['A865.mean'], \
-        result_dict['A865.std'], \
-        result_dict['A865.min'], \
-        result_dict['A865.25%ile'], \
-        result_dict['A865.50%ile'], \
-        result_dict['A865.75%ile'], \
-        result_dict['A865.max'] = list(a865_desc)
+            # https://sentinel.esa.int/web/sentinel/technical-guides/sentinel-3-olci/level-2/aerosol-optical-thickness
+            t865_desc = df.loc[:, 'T865:float'].describe()
+
+            result_dict['T865.count'], \
+            result_dict['T865.mean'], \
+            result_dict['T865.std'], \
+            result_dict['T865.min'], \
+            result_dict['T865.25%ile'], \
+            result_dict['T865.50%ile'], \
+            result_dict['T865.75%ile'], \
+            result_dict['T865.max'] = list(t865_desc)
+
+            # https://sentinel.esa.int/web/sentinel/technical-guides/sentinel-3-olci/level-2/aerosol-angstrom-exponent
+            a865_desc = df.loc[:, 'A865:float'].describe()
+
+            result_dict['A865.count'], \
+            result_dict['A865.mean'], \
+            result_dict['A865.std'], \
+            result_dict['A865.min'], \
+            result_dict['A865.25%ile'], \
+            result_dict['A865.50%ile'], \
+            result_dict['A865.75%ile'], \
+            result_dict['A865.max'] = list(a865_desc)
+
+        else:
+            result_dict['Oa01_reflectance:float'] = 0
+            result_dict['Oa02_reflectance:float'] = 0
+            result_dict['Oa03_reflectance:float'] = 0
+            result_dict['Oa04_reflectance:float'] = 0
+            result_dict['Oa05_reflectance:float'] = 0
+            result_dict['Oa06_reflectance:float'] = 0
+            result_dict['Oa07_reflectance:float'] = 0
+            result_dict['Oa08_reflectance:float'] = 0
+            result_dict['Oa09_reflectance:float'] = 0
+            result_dict['Oa10_reflectance:float'] = 0
+            result_dict['Oa11_reflectance:float'] = 0
+            result_dict['Oa12_reflectance:float'] = 0
+            result_dict['Oa16_reflectance:float'] = 0
+            result_dict['Oa17_reflectance:float'] = 0
+            result_dict['Oa18_reflectance:float'] = 0
+            result_dict['Oa21_reflectance:float'] = 0
+            result_dict['median_IR'] = 0
+            result_dict['OAA:float'] = 0
+            result_dict['OZA:float'] = 0
+            result_dict['SAA:float'] = 0
+            result_dict['SZA:float'] = 0
+            result_dict['A865.mean'] = 0
+            result_dict['A865.std'] = 0
+            result_dict['A865.min'] = 0
+            result_dict['A865.max'] = 0
+            result_dict['A865.25%ile'] = 0
+            result_dict['A865.50%ile'] = 0
+            result_dict['A865.75%ile'] = 0
+            result_dict['T865.mean'] = 0
+            result_dict['T865.std'] = 0
+            result_dict['T865.min'] = 0
+            result_dict['T865.max'] = 0
+            result_dict['T865.25%ile'] = 0
+            result_dict['T865.50%ile'] = 0
+            result_dict['T865.75%ile'] = 0
+            result_dict['GLINT'] = 0
+            result_dict['GLINT.std'] = 0
+            result_dict['AbsVldPx'] = 0
+            result_dict['VldPx.pct'] = 0
 
         return result_dict
+
+
 
     @staticmethod
     def netcdf_kml_slicer(gpt_path, kml_path, input_imgs_folder, output_folder):
@@ -628,103 +665,8 @@ class TsGenerator:
         Oa17_reflectance_tms = []
         Oa18_reflectance_tms = []
         Oa21_reflectance_tms = []
-        OAA_tms = []
-        OZA_tms = []
-        SAA_tms = []
-        SZA_tms = []
-        A865_tms = []
-        T865_tms = []
-        T865std_tms = []
-        datetime_labels = []
-        string_labels = []
 
-        total = len(sorted_list)
-
-        for n, image in enumerate(sorted_list):
-            logging.info(f'Extracting image {n + 1}/{total} - {image[:31]}...')
-            file_name = os.path.join(work_dir, image)
-            dtlbl = datetime.strptime(image[16:31], '%Y%m%dT%H%M%S')
-            strlbl = image[16:31]
-            Oa01, Oa02, Oa03, Oa04, Oa05, Oa06, Oa07, Oa08, Oa09, Oa10, Oa11, Oa12, Oa16, Oa17, Oa18, Oa21, OAA, OZA, SAA, SZA, A865, T865, T865std = list(
-                self.get_mean_and_clean_v2(file_name))
-
-            Oa01_reflectance_tms.append(Oa01)
-            Oa02_reflectance_tms.append(Oa02)
-            Oa03_reflectance_tms.append(Oa03)
-            Oa04_reflectance_tms.append(Oa04)
-            Oa05_reflectance_tms.append(Oa05)
-            Oa06_reflectance_tms.append(Oa06)
-            Oa07_reflectance_tms.append(Oa07)
-            Oa08_reflectance_tms.append(Oa08)
-            Oa09_reflectance_tms.append(Oa09)
-            Oa10_reflectance_tms.append(Oa10)
-            Oa11_reflectance_tms.append(Oa11)
-            Oa12_reflectance_tms.append(Oa12)
-            Oa16_reflectance_tms.append(Oa16)
-            Oa17_reflectance_tms.append(Oa17)
-            Oa18_reflectance_tms.append(Oa18)
-            Oa21_reflectance_tms.append(Oa21)
-
-            OAA_tms.append(OAA)
-            OZA_tms.append(OZA)
-            SAA_tms.append(SAA)
-            SZA_tms.append(SZA)
-            A865_tms.append(A865)
-            T865_tms.append(T865)
-            T865std_tms.append(T865std)
-
-            datetime_labels.append(dtlbl)
-            string_labels.append(strlbl)
-
-            d = {'Datetime': datetime_labels,
-                 'Date-String': string_labels,
-                 'B1-400': Oa01_reflectance_tms,
-                 'B2-412.5': Oa02_reflectance_tms,
-                 'B3-442.5': Oa03_reflectance_tms,
-                 'B4-490': Oa04_reflectance_tms,
-                 'B5-510': Oa05_reflectance_tms,
-                 'B6-560': Oa06_reflectance_tms,
-                 'B7-620': Oa07_reflectance_tms,
-                 'B8-665': Oa08_reflectance_tms,
-                 'B9-673.75': Oa09_reflectance_tms,
-                 'B10-681.25': Oa10_reflectance_tms,
-                 'B11-708.75': Oa11_reflectance_tms,
-                 'B12-753.75': Oa12_reflectance_tms,
-                 'B16-778.75': Oa16_reflectance_tms,
-                 'B17-865': Oa17_reflectance_tms,
-                 'B18-885': Oa18_reflectance_tms,
-                 'B21-1020': Oa21_reflectance_tms,
-                 'OAA': OAA_tms,
-                 'OZA': OZA_tms,
-                 'SAA': SAA_tms,
-                 'SZA': SZA_tms,
-                 'A865': A865_tms,
-                 'T865': T865_tms,
-                 'T865std': T865std_tms,
-                 'filename': sorted_list}
-
-        return d
-
-    def generate_time_series_datav2(self, work_dir, sorted_list):
-        """
-        # TODO: Write docstrings.
-        """
-        Oa01_reflectance_tms = []
-        Oa02_reflectance_tms = []
-        Oa03_reflectance_tms = []
-        Oa04_reflectance_tms = []
-        Oa05_reflectance_tms = []
-        Oa06_reflectance_tms = []
-        Oa07_reflectance_tms = []
-        Oa08_reflectance_tms = []
-        Oa09_reflectance_tms = []
-        Oa10_reflectance_tms = []
-        Oa11_reflectance_tms = []
-        Oa12_reflectance_tms = []
-        Oa16_reflectance_tms = []
-        Oa17_reflectance_tms = []
-        Oa18_reflectance_tms = []
-        Oa21_reflectance_tms = []
+        Oa17_median_tms = []
 
         OAA_tms = []
         OZA_tms = []
@@ -753,16 +695,31 @@ class TsGenerator:
         pctvlddpx_tms = []
         datetime_labels = []
         string_labels = []
+        quality_labels = []
+        qlinfo_labels = []
 
         total = len(sorted_list)
 
         for n, image in enumerate(sorted_list):
-            print(f'Extracting image {n + 1}/{total} - {image[:31]}...')
-            file_name = os.path.join(work_dir, image)
-            dtlbl = datetime.strptime(image[16:31], '%Y%m%dT%H%M%S')
-            strlbl = image[16:31]
+            figdate = os.path.basename(image).split('____')[1].split('_')[0]
+            dtlbl = datetime.strptime(figdate, '%Y%m%dT%H%M%S')
+            print(f'Extracting image {n + 1}/{total} - {dtlbl}...')
 
-            means_dict = self.get_mean_and_clean_v2(file_name)
+            file_name = os.path.join(work_dir, image)
+
+            strlbl = figdate
+
+            means_dict = self.get_mean_and_clean(file_name)
+
+            if means_dict['AbsVldPx'] == 0:
+                quality = 0
+                qobs = 'Empty DataFrame, processing skipped.'
+            elif means_dict['VldPx.pct'] < 5.0:
+                quality = 2
+                qobs = 'Less than 5% of valid pixels.'
+            else:
+                quality = 1
+                qobs = 'Pass.'
 
             Oa01_reflectance_tms.append(means_dict['Oa01_reflectance:float'])
             Oa02_reflectance_tms.append(means_dict['Oa02_reflectance:float'])
@@ -780,6 +737,8 @@ class TsGenerator:
             Oa17_reflectance_tms.append(means_dict['Oa17_reflectance:float'])
             Oa18_reflectance_tms.append(means_dict['Oa18_reflectance:float'])
             Oa21_reflectance_tms.append(means_dict['Oa21_reflectance:float'])
+
+            Oa17_median_tms.append(means_dict['median_IR'])
 
             OAA_tms.append(means_dict['OAA:float'])
             OZA_tms.append(means_dict['OZA:float'])
@@ -808,8 +767,11 @@ class TsGenerator:
             pctvlddpx_tms.append(means_dict['VldPx.pct'])
             datetime_labels.append(dtlbl)
             string_labels.append(strlbl)
+            quality_labels.append(quality)
+            qlinfo_labels.append(qobs)
 
-            d = {'Datetime': datetime_labels,
+            d = {'filename': sorted_list,
+                 'Datetime': datetime_labels,
                  'Date-String': string_labels,
                  'B1-400': Oa01_reflectance_tms,
                  'B2-412.5': Oa02_reflectance_tms,
@@ -827,6 +789,9 @@ class TsGenerator:
                  'B17-865': Oa17_reflectance_tms,
                  'B18-885': Oa18_reflectance_tms,
                  'B21-1020': Oa21_reflectance_tms,
+
+                 'IR-median': Oa17_median_tms,
+
                  'OAA': OAA_tms,
                  'OZA': OZA_tms,
                  'SAA': SAA_tms,
@@ -852,11 +817,12 @@ class TsGenerator:
                  'Glintstd': glintstd_tms,
                  'abs-vld-px': absvldpx_tms,
                  'pct-vld-px': pctvlddpx_tms,
-                 'filename': sorted_list}
+                 'quality': quality_labels,
+                 'qality-info': qlinfo_labels}
 
         return d
 
-    def s3l2_custom_reflectance_plot(self, df, figure_title=None, save_title=None, cbar=False):
+    def s3l2_custom_reflectance_plot(self, df, figure_title=None, save_title=None, cbar=False, c_lbl='T865'):
         """
         # TODO: Write docstrings.
         """
@@ -898,8 +864,8 @@ class TsGenerator:
             ax1.set_title(figure_title, y=1, fontsize=16)
 
         # creating color scale based on T865
-        # lst = df['T865:float']
-        lst = df['minus_cams']
+        lst = df['T865:float']
+        # lst = df['minus_cams']
         minima = min(lst)
         maxima = max(lst)
         norm = matplotlib.colors.Normalize(vmin=minima, vmax=maxima, clip=True)
@@ -924,11 +890,12 @@ class TsGenerator:
         ax2.set_title('Sentinel-3 Oa Bands', y=0.93, x=0.12, fontsize='xx-small')
 
         if cbar:
-            cbar = fig.colorbar(ax2, ax=ax2)
-            cbar.set_label(c1_lbl)
+            cbar = fig.colorbar(ax1, ax=ax1)
+            cbar.set_label(c_lbl)
 
         if save_title:
             plt.savefig(save_title, dpi=self.imgdpi, bbox_inches='tight')
+            plt.close(fig)
         else:
             plt.show()
 

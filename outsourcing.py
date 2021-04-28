@@ -249,7 +249,6 @@ class GPTBridge:
 
 class GDALBridge:
     from osgeo import ogr
-    from osgeo import osr
     from osgeo import gdal
     """
     TODO: write docstrings

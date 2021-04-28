@@ -1,18 +1,26 @@
 import os
 import sys
 import utils
+import logging
+import concurrent.futures
+
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import netCDF4 as nc
 
+from skimage.transform import resize
+from pathlib import Path
+from parallel_get_xy_poly import ParallelCoord
+from parallel_get_band_in_nc import ParallelBandExtract
 
 # logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S', level=logging.DEBUG)
 
 try:
     from mpl_toolkits.basemap import Basemap
 except:
-    print('sen3r-NcExplorer: from mpl_toolkits.basemap import Basemap FAILED!'
-          'You can still proceed without plotting any maps.')
+    print('sen3r-NcExplorer: from mpl_toolkits.basemap import Basemap FAILED!\n'
+          'You can still proceed without plotting any maps.\n')
     # logging.info('from mpl_toolkits.basemap import Basemap FAILED! '
     #       'You can still proceed without plotting any maps.')
 
@@ -21,55 +29,202 @@ class NcExplorer:
     """
     This class is intended to provide methods to manipulate NetCDF data from Sentinel-3
     """
-    def __init__(self, input_nc_folder=None, verbose=False):
-        self.nc_folder = input_nc_folder
+    def __init__(self, input_nc_folder=None, product='WFR', verbose=False, initialize=True,
+                 idf=False, external_use=False):
+        self.initiated = initialize
         self.verbose = verbose
-        self.os = os.name
-        self.class_label = 'SEN3R:Nc_Explorer'
-        print(f'Declaring class instance from: {self.class_label}')
-        if self.verbose:
-            print(f'Verbose set to True.')
-        if self.nc_folder is None:
-            print(f'Input NetCDF file folder not set. Proceed at your own risk.')
+        if not external_use:
+            if input_nc_folder:
+                self.nc_folder = Path(input_nc_folder)
+            else:
+                self.nc_folder = input_nc_folder
+            self.product = product.lower()
+            self.os = os.name
+            self.class_label = 'SEN3R:nc_explorer'
+            print(f'Declaring class instance from: {self.class_label}')
+            if self.verbose:
+                print(f'Verbose set to True.')
+            if self.nc_folder is None:
+                print(f'Input NetCDF file folder not set. Proceed at your own risk.')
+            else:
+                print('Reading valid NetCDF files inside image folder...')
+                self.netcdf_valid_band_list = self.get_valid_band_files(rad_only=False)
+            if input_nc_folder and initialize:
+                self.initialize_geometries()
+            else:
 
-    s3_bands_l1 = {'Oa01': 400,
-                   'Oa02': 412.5,
-                   'Oa03': 442.5,
-                   'Oa04': 490,
-                   'Oa05': 510,
-                   'Oa06': 560,
-                   'Oa07': 620,
-                   'Oa08': 665,
-                   'Oa09': 673.75,
-                   'Oa10': 681.25,
-                   'Oa11': 708.75,
-                   'Oa12': 753.75,
-                   'Oa13': 761.25,
-                   'Oa14': 764.375,
-                   'Oa15': 767.5,
-                   'Oa16': 778.75,
-                   'Oa17': 865,
-                   'Oa18': 885,
-                   'Oa19': 900,
-                   'Oa20': 940,
-                   'Oa21': 1020}
+                print('initialize set to False, ignoring image geometries.'
+                      ' This can be later done manually by calling initialize_geometries()'
+                      ' after properly setting the nc_folder.')
 
-    s3_bands_l2 = {'Oa01': 400,
-                   'Oa02': 412.5,
-                   'Oa03': 442.5,
-                   'Oa04': 490,
-                   'Oa05': 510,
-                   'Oa06': 560,
-                   'Oa07': 620,
-                   'Oa08': 665,
-                   'Oa09': 673.75,
-                   'Oa10': 681.25,
-                   'Oa11': 708.75,
-                   'Oa12': 753.75,
-                   'Oa16': 778.75,
-                   'Oa17': 865,
-                   'Oa18': 885,
-                   'Oa21': 1020}
+    syn_files = {
+        'Syn_AOT550.nc': ['T550'],
+        'Syn_Angstrom_exp550.nc': ['A550']
+    }
+
+    syn_vld_names = {}
+
+    wfr_files_p = (('w_aer.nc', 'A865'),
+                   ('w_aer.nc', 'T865'),
+                   ('Oa01_reflectance.nc', 'Oa01_reflectance'),
+                   ('Oa02_reflectance.nc', 'Oa02_reflectance'),
+                   ('Oa03_reflectance.nc', 'Oa03_reflectance'),
+                   ('Oa04_reflectance.nc', 'Oa04_reflectance'),
+                   ('Oa05_reflectance.nc', 'Oa05_reflectance'),
+                   ('Oa06_reflectance.nc', 'Oa06_reflectance'),
+                   ('Oa07_reflectance.nc', 'Oa07_reflectance'),
+                   ('Oa08_reflectance.nc', 'Oa08_reflectance'),
+                   ('Oa09_reflectance.nc', 'Oa09_reflectance'),
+                   ('Oa10_reflectance.nc', 'Oa10_reflectance'),
+                   ('Oa11_reflectance.nc', 'Oa11_reflectance'),
+                   ('Oa12_reflectance.nc', 'Oa12_reflectance'),
+                   ('Oa16_reflectance.nc', 'Oa16_reflectance'),
+                   ('Oa17_reflectance.nc', 'Oa17_reflectance'),
+                   ('Oa18_reflectance.nc', 'Oa18_reflectance'),
+                   ('Oa21_reflectance.nc', 'Oa21_reflectance'),
+                   ('wqsf.nc', 'WQSF'))
+
+    wfr_files = {
+        'w_aer.nc': ['A865', 'T865'],
+        'Oa01_reflectance.nc': ['Oa01_reflectance'],
+        'Oa02_reflectance.nc': ['Oa02_reflectance'],
+        'Oa03_reflectance.nc': ['Oa03_reflectance'],
+        'Oa04_reflectance.nc': ['Oa04_reflectance'],
+        'Oa05_reflectance.nc': ['Oa05_reflectance'],
+        'Oa06_reflectance.nc': ['Oa06_reflectance'],
+        'Oa07_reflectance.nc': ['Oa07_reflectance'],
+        'Oa08_reflectance.nc': ['Oa08_reflectance'],
+        'Oa09_reflectance.nc': ['Oa09_reflectance'],
+        'Oa10_reflectance.nc': ['Oa10_reflectance'],
+        'Oa11_reflectance.nc': ['Oa11_reflectance'],
+        'Oa12_reflectance.nc': ['Oa12_reflectance'],
+        'Oa16_reflectance.nc': ['Oa16_reflectance'],
+        'Oa17_reflectance.nc': ['Oa17_reflectance'],
+        'Oa18_reflectance.nc': ['Oa18_reflectance'],
+        'Oa21_reflectance.nc': ['Oa21_reflectance'],
+        'wqsf.nc': ['WQSF']
+    }
+
+    wfr_vld_names = {
+        'lon': 'longitude:double',
+        'lat': 'latitude:double',
+        'Oa01_reflectance': 'Oa01_reflectance:float',
+        'Oa02_reflectance': 'Oa02_reflectance:float',
+        'Oa03_reflectance': 'Oa03_reflectance:float',
+        'Oa04_reflectance': 'Oa04_reflectance:float',
+        'Oa05_reflectance': 'Oa05_reflectance:float',
+        'Oa06_reflectance': 'Oa06_reflectance:float',
+        'Oa07_reflectance': 'Oa07_reflectance:float',
+        'Oa08_reflectance': 'Oa08_reflectance:float',
+        'Oa09_reflectance': 'Oa09_reflectance:float',
+        'Oa10_reflectance': 'Oa10_reflectance:float',
+        'Oa11_reflectance': 'Oa11_reflectance:float',
+        'Oa12_reflectance': 'Oa12_reflectance:float',
+        'Oa16_reflectance': 'Oa16_reflectance:float',
+        'Oa17_reflectance': 'Oa17_reflectance:float',
+        'Oa18_reflectance': 'Oa18_reflectance:float',
+        'Oa21_reflectance': 'Oa21_reflectance:float',
+        'OAA': 'OAA:float',
+        'OZA': 'OZA:float',
+        'SAA': 'SAA:float',
+        'SZA': 'SZA:float',
+        'WQSF': 'WQSF_lsb:double',
+        'A865': 'A865:float',
+        'T865': 'T865:float',
+    }
+
+    s3_bands_l1 = {
+        'Oa01': 400,
+        'Oa02': 412.5,
+        'Oa03': 442.5,
+        'Oa04': 490,
+        'Oa05': 510,
+        'Oa06': 560,
+        'Oa07': 620,
+        'Oa08': 665,
+        'Oa09': 673.75,
+        'Oa10': 681.25,
+        'Oa11': 708.75,
+        'Oa12': 753.75,
+        'Oa13': 761.25,
+        'Oa14': 764.375,
+        'Oa15': 767.5,
+        'Oa16': 778.75,
+        'Oa17': 865,
+        'Oa18': 885,
+        'Oa19': 900,
+        'Oa20': 940,
+        'Oa21': 1020
+    }
+
+    s3_bands_l2 = {
+        'Oa01': 400,
+        'Oa02': 412.5,
+        'Oa03': 442.5,
+        'Oa04': 490,
+        'Oa05': 510,
+        'Oa06': 560,
+        'Oa07': 620,
+        'Oa08': 665,
+        'Oa09': 673.75,
+        'Oa10': 681.25,
+        'Oa11': 708.75,
+        'Oa12': 753.75,
+        'Oa16': 778.75,
+        'Oa17': 865,
+        'Oa18': 885,
+        'Oa21': 1020
+    }
+
+    def initialize_geometries(self):
+        """
+        Manually load the metadata of the input NetCDF in case it was not automatically done
+        during class instace.
+        """
+        print(f'Product set to {self.product.upper()}.')
+        print('Loading image bands into memory, this may take a while...')
+        self.initiated = True
+        if self.product.lower() == 'wfr':
+            geo_coord = nc.Dataset(self.nc_folder/'geo_coordinates.nc')
+            self.g_lat = geo_coord['latitude'][:]
+            self.g_lon = geo_coord['longitude'][:]
+
+            # Load and resize tie LON/LAT Bands using the geo_coordinates.nc file dimensions: (4091, 4865)
+            tie_geo = nc.Dataset(self.nc_folder/'tie_geo_coordinates.nc')
+            self.t_lat = tie_geo['latitude'][:]
+            self.t_lat = resize(self.t_lat, (self.g_lat.shape[0], self.g_lat.shape[1]), anti_aliasing=False)
+            self.t_lon = tie_geo['longitude'][:]
+            self.t_lon = resize(self.t_lon, (self.g_lon.shape[0], self.g_lon.shape[1]), anti_aliasing=False)
+
+            # Load and resize Sun Geometry Angle Bands using the geo_coordinates.nc file dimensions: (4091, 4865)
+            t_geometries = nc.Dataset(self.nc_folder/'tie_geometries.nc')
+            self.OAA = t_geometries['OAA'][:]
+            self.OAA = resize(self.OAA, (self.g_lon.shape[0], self.g_lon.shape[1]), anti_aliasing=False)
+
+            self.OZA = t_geometries['OZA'][:]
+            self.OZA = resize(self.OZA, (self.g_lon.shape[0], self.g_lon.shape[1]), anti_aliasing=False)
+
+            self.SAA = t_geometries['SAA'][:]
+            self.SAA = resize(self.SAA, (self.g_lon.shape[0], self.g_lon.shape[1]), anti_aliasing=False)
+
+            self.SZA = t_geometries['SZA'][:]
+            self.SZA = resize(self.SZA, (self.g_lon.shape[0], self.g_lon.shape[1]), anti_aliasing=False)
+
+        elif self.product.lower() == 'syn':
+            dsgeo = nc.Dataset(self.nc_folder/'geolocation.nc')
+            self.g_lat = dsgeo['lat'][:]
+            self.g_lon = dsgeo['lon'][:]
+
+        else:
+            print(f'Invalid product: {self.product.upper()}.')
+            self.initiated = False
+
+    def _test_initiated(self):
+        if not self.initiated:
+            print('ERROR: Image class was not initialized. '
+                  'This can be done manually by calling initialize_geometries()'
+                  ' after properly setting the nc_folder.')
+            sys.exit(1)
 
     @staticmethod  # TODO: maybe move it to utils?
     def ncdump(nc_fid, verb=True):
@@ -170,10 +325,25 @@ class NcExplorer:
         plt.show()
         # plt.figure()
 
+    def get_footprint_xy(self):
+        pass
+
+    def footprint2raster(self):
+        self._test_initiated()
+        vertices = np.vstack(vertices)
+        ymin = np.min(vertices[:, 0])
+        ymax = np.max(vertices[:, 0])
+        xmin = np.min(vertices[:, 1])
+        xmax = np.max(vertices[:, 1])
+        pass
+
     def get_valid_band_files(self, rad_only=True):
-        # TODO: write docstrings
+        """
+        Search inside the .SEN3 image folder for files ended with .nc; If rad_only is True,
+        only reflectance bands are returned, otherwise return everything ended with .nc extension.
+        """
         if self.nc_folder is None:
-            print('Unable to find files if NetCDF image folder is not defined during NcExplorer class instance.')
+            print('Unable to find files. NetCDF image folder is not defined during NcExplorer class instance.')
             sys.exit(1)
 
         sentinel_images_path = self.nc_folder
@@ -202,6 +372,23 @@ class NcExplorer:
             return nc_bands
         else:
             return nc_files
+    def get_point_data_in_single_band(self, band, lon=None, lat=None, target_lon=None, target_lat=None):
+        # TODO: write docstrings
+        if self.verbose:
+            print(f'{self.class_label}.get_point_data_in_single_band()\n')
+
+        lat = lat[:, :, np.newaxis]
+        lon = lon[:, :, np.newaxis]
+        grid = np.concatenate([lat, lon], axis=2)
+        vector = np.array([target_lat, target_lon]).reshape(1, 1, -1)
+        subtraction = vector - grid
+        dist = np.linalg.norm(subtraction, axis=2)
+        result = np.where(dist == dist.min())
+        target_x_y = result[0][0], result[1][0]
+
+        rad = band[target_x_y]
+
+        return target_x_y, rad
 
     def get_point_data_in_bands(self, bands_dictionary, lon=None, lat=None, target_lon=None, target_lat=None):
         # TODO: write docstrings
@@ -235,23 +422,139 @@ class NcExplorer:
 
         return target_x_y, rad_in_bands
 
-    def get_point_data_in_single_band(self, band, lon=None, lat=None, target_lon=None, target_lat=None):
-        # TODO: write docstrings
-        if self.verbose:
-            print(f'{self.class_label}.get_point_data_in_single_band()\n')
+    def get_xy_polygon_from_json(self, poly_path, geojson=True):
+        """
+        Takes in a geojson polygon file and do black magic to return a dataframe
+        containing the data in each band that falls inside the polygon.
+        """
+        self._test_initiated()
+        if geojson:
+            vertices = utils.geojson_to_polygon(poly_path)
 
-        lat = lat[:, :, np.newaxis]
-        lon = lon[:, :, np.newaxis]
-        grid = np.concatenate([lat, lon], axis=2)
-        vector = np.array([target_lat, target_lon]).reshape(1, 1, -1)
-        subtraction = vector - grid
-        dist = np.linalg.norm(subtraction, axis=2)
-        result = np.where(dist == dist.min())
-        target_x_y = result[0][0], result[1][0]
+        gpc = ParallelCoord()
 
-        rad = band[target_x_y]
+        xy_vertices = [gpc.parallel_get_xy_poly(self.g_lat, self.g_lon, vert) for vert in vertices]
 
-        return target_x_y, rad
+        return xy_vertices, vertices
+
+    def get_raster_mask(self, xy_vertices):
+        """
+        Creates a boolean mask of 0 and 1 with the polygons using the nc resolution.
+        """
+        self._test_initiated()
+        # Generate extraction mask
+        from skimage.draw import polygon
+
+        img = np.zeros(self.g_lon.shape)
+        cc = np.ndarray(shape=(0,), dtype='int64')
+        rr = np.ndarray(shape=(0,), dtype='int64')
+
+        for vert in xy_vertices:
+            t_rr, t_cc = polygon(vert[:, 0], vert[:, 1], self.g_lon.shape)
+            img[t_rr, t_cc] = 1
+            cc = np.append(cc, t_cc)
+            rr = np.append(rr, t_rr)
+
+        return img, cc, rr
+
+    def get_rgb_from_poly(self, poly_path):
+
+        # I) Convert the lon/lat polygon into a x/y poly:
+        xy_vert, ll_vert = self.get_xy_polygon_from_json(poly_path=poly_path)
+
+        # II) Get the bounding box:
+        xmin, xmax, ymin, ymax = utils.bbox(xy_vert)
+
+        # III) Get only the RGB bands:
+        if self.product.lower() == 'wfr':
+            ds = nc.Dataset(self.nc_folder / 'Oa08_reflectance.nc')
+            red = ds['Oa08_reflectance'][:]
+            ds = nc.Dataset(self.nc_folder / 'Oa06_reflectance.nc')
+            green = ds['Oa06_reflectance'][:]
+            ds = nc.Dataset(self.nc_folder / 'Oa03_reflectance.nc')
+            blue = ds['Oa03_reflectance'][:]
+
+        elif self.product.lower() == 'syn':
+            ds = nc.Dataset(self.nc_folder / 'Syn_Oa08_reflectance.nc')
+            red = ds['SDR_Oa08'][:]
+            ds = nc.Dataset(self.nc_folder / 'Syn_Oa06_reflectance.nc')
+            green = ds['SDR_Oa06'][:]
+            ds = nc.Dataset(self.nc_folder / 'Syn_Oa03_reflectance.nc')
+            blue = ds['SDR_Oa03'][:]
+        else:
+            print(f'Invalid product: {self.product.upper()}.')
+            sys.exit(1)
+
+        # IV) Subset the bands using the bbox:
+        red = red[ymin:ymax, xmin:xmax]
+        green = green[ymin:ymax, xmin:xmax]
+        blue = blue[ymin:ymax, xmin:xmax]
+
+        # V) Stack the bands vertically:
+        # self.rgb = np.vstack((red, green, blue))
+        return red, green, blue
+
+
+    def get_data_in_poly(self, poly_path, go_parallel=True):
+        """
+        Given an input polygon and image, return a dataframe containing
+        the data of the image that falls inside the polygon.
+        """
+        # I) Convert the lon/lat polygon into a x/y poly:
+        xy_vert, ll_vert = self.get_xy_polygon_from_json(poly_path=poly_path)
+
+        # II) Use the poly to generate an extraction mask:
+        mask, cc, rr = self.get_raster_mask(xy_vertices=xy_vert)
+
+        # III) Get the dictionary of available bands based on the product:
+        if self.product.lower() == 'wfr':
+            bdict = self.wfr_files
+        elif self.product.lower() == 'syn':
+            bdict = self.syn_files
+        else:
+            print(f'Invalid product: {self.product.upper()}.')
+            sys.exit(1)
+
+        if go_parallel:
+            pbe = ParallelBandExtract()
+            extracted_bands = pbe.parallel_get_bdata_in_nc(rr, cc, self.g_lon, self.g_lat,
+                                                           self.nc_folder, self.wfr_files_p)
+            return extracted_bands
+
+        else:
+            # IV) Generate the dataframe (NON-PARALLEL):
+            custom_subset = {'x': rr, 'y': cc}
+            df = pd.DataFrame(custom_subset)
+            print('extracting: LON / LAT')
+            df['lat'] = [self.g_lat[x, y] for x, y in zip(df['x'], df['y'])]
+            df['lon'] = [self.g_lon[x, y] for x, y in zip(df['x'], df['y'])]
+            print('extracting: OAA / OZA / SAA / SZA')
+            df['OAA'] = [self.OAA[x, y] for x, y in zip(df['x'], df['y'])]
+            df['OZA'] = [self.OZA[x, y] for x, y in zip(df['x'], df['y'])]
+            df['SAA'] = [self.SAA[x, y] for x, y in zip(df['x'], df['y'])]
+            df['SZA'] = [self.SZA[x, y] for x, y in zip(df['x'], df['y'])]
+
+            # V) Populate the DF with data from the other bands:
+            for k in bdict:
+                ds = nc.Dataset(self.nc_folder/k)
+                for layer in bdict[k]:
+                    print(f'extracting: {layer}')
+                    band = ds[layer][:].data
+                    df[layer] = [band[x, y] for x, y in zip(df['x'], df['y'])]
+
+        idx_names = df[df['Oa08_reflectance'] == 65535.0].index
+        df.drop(idx_names, inplace=True)
+
+        if self.product.lower() == 'wfr':
+            df = df.rename(columns=self.wfr_vld_names)
+
+        # TODO: check necessity of renaming SYNERGY colnames.
+        # if self.product.lower() == 'syn':
+        #     df = df.rename(columns=self.syn_vld_names)
+
+        if len(df) == 0:
+            print('EMPTY DATAFRAME WARNING! Unable to find valid pixels in file.')
+        return df
 
     # TODO: this is very specific, make it more generic.
     def plot_s3_lv2_reflectances(self, radiance_list, icor, band_radiances, figure_title):

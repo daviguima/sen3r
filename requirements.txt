@@ -2,12 +2,14 @@ scipy
 python-decouple
 sentinelsat
 pandas
+geopandas
 numpy
 matplotlib
 pyproj
 pyshp
 netcdf4
 pillow
+scikit-image
 OWSLib
 rasterstats
 pyqt5-tools
