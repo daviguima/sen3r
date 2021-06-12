@@ -12,7 +12,8 @@ from pathlib import Path
 class ParallelCoord:
     
     def vect_dist_subtraction(self, coord_pair):
-        subtraction = coord_pair - grid 
+        global grid
+        subtraction = coord_pair - grid
         dist = np.linalg.norm(subtraction, axis=2)
         result = np.where(dist == dist.min())
         target_x_y = [result[0][0], result[1][0]]
