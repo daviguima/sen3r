@@ -1,8 +1,7 @@
 import os
 import sys
-import utils
-import logging
-import concurrent.futures
+import core.utils as utils
+from core.commons import DefaultDicts as dd
 
 import numpy as np
 import pandas as pd
@@ -11,10 +10,10 @@ import netCDF4 as nc
 
 from skimage.transform import resize
 from pathlib import Path
+
+# TODO: fix parallel run for windows
 from parallel_get_xy_poly import ParallelCoord
 from parallel_get_band_in_nc import ParallelBandExtract
-
-# logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S', level=logging.DEBUG)
 
 try:
     from mpl_toolkits.basemap import Basemap
@@ -25,12 +24,11 @@ except:
     #       'You can still proceed without plotting any maps.')
 
 
-class NcExplorer:
+class S3NcEngine:
     """
-    This class is intended to provide methods to manipulate NetCDF data from Sentinel-3
+    Provide methods to manipulate NetCDF4 data from Sentinel-3 OLCI products.
     """
-    def __init__(self, input_nc_folder=None, product='WFR', verbose=False, initialize=True,
-                 idf=False, external_use=False):
+    def __init__(self, input_nc_folder=None, product='WFR', verbose=False, initialize=True, external_use=False):
         self.initiated = initialize
         self.verbose = verbose
         if not external_use:
@@ -56,125 +54,6 @@ class NcExplorer:
                 print('initialize set to False, ignoring image geometries.'
                       ' This can be later done manually by calling initialize_geometries()'
                       ' after properly setting the nc_folder.')
-
-    syn_files = {
-        'Syn_AOT550.nc': ['T550'],
-        'Syn_Angstrom_exp550.nc': ['A550']
-    }
-
-    syn_vld_names = {}
-
-    wfr_files_p = (('w_aer.nc', 'A865'),
-                   ('w_aer.nc', 'T865'),
-                   ('Oa01_reflectance.nc', 'Oa01_reflectance'),
-                   ('Oa02_reflectance.nc', 'Oa02_reflectance'),
-                   ('Oa03_reflectance.nc', 'Oa03_reflectance'),
-                   ('Oa04_reflectance.nc', 'Oa04_reflectance'),
-                   ('Oa05_reflectance.nc', 'Oa05_reflectance'),
-                   ('Oa06_reflectance.nc', 'Oa06_reflectance'),
-                   ('Oa07_reflectance.nc', 'Oa07_reflectance'),
-                   ('Oa08_reflectance.nc', 'Oa08_reflectance'),
-                   ('Oa09_reflectance.nc', 'Oa09_reflectance'),
-                   ('Oa10_reflectance.nc', 'Oa10_reflectance'),
-                   ('Oa11_reflectance.nc', 'Oa11_reflectance'),
-                   ('Oa12_reflectance.nc', 'Oa12_reflectance'),
-                   ('Oa16_reflectance.nc', 'Oa16_reflectance'),
-                   ('Oa17_reflectance.nc', 'Oa17_reflectance'),
-                   ('Oa18_reflectance.nc', 'Oa18_reflectance'),
-                   ('Oa21_reflectance.nc', 'Oa21_reflectance'),
-                   ('wqsf.nc', 'WQSF'))
-
-    wfr_files = {
-        'w_aer.nc': ['A865', 'T865'],
-        'Oa01_reflectance.nc': ['Oa01_reflectance'],
-        'Oa02_reflectance.nc': ['Oa02_reflectance'],
-        'Oa03_reflectance.nc': ['Oa03_reflectance'],
-        'Oa04_reflectance.nc': ['Oa04_reflectance'],
-        'Oa05_reflectance.nc': ['Oa05_reflectance'],
-        'Oa06_reflectance.nc': ['Oa06_reflectance'],
-        'Oa07_reflectance.nc': ['Oa07_reflectance'],
-        'Oa08_reflectance.nc': ['Oa08_reflectance'],
-        'Oa09_reflectance.nc': ['Oa09_reflectance'],
-        'Oa10_reflectance.nc': ['Oa10_reflectance'],
-        'Oa11_reflectance.nc': ['Oa11_reflectance'],
-        'Oa12_reflectance.nc': ['Oa12_reflectance'],
-        'Oa16_reflectance.nc': ['Oa16_reflectance'],
-        'Oa17_reflectance.nc': ['Oa17_reflectance'],
-        'Oa18_reflectance.nc': ['Oa18_reflectance'],
-        'Oa21_reflectance.nc': ['Oa21_reflectance'],
-        'wqsf.nc': ['WQSF']
-    }
-
-    wfr_vld_names = {
-        'lon': 'longitude:double',
-        'lat': 'latitude:double',
-        'Oa01_reflectance': 'Oa01_reflectance:float',
-        'Oa02_reflectance': 'Oa02_reflectance:float',
-        'Oa03_reflectance': 'Oa03_reflectance:float',
-        'Oa04_reflectance': 'Oa04_reflectance:float',
-        'Oa05_reflectance': 'Oa05_reflectance:float',
-        'Oa06_reflectance': 'Oa06_reflectance:float',
-        'Oa07_reflectance': 'Oa07_reflectance:float',
-        'Oa08_reflectance': 'Oa08_reflectance:float',
-        'Oa09_reflectance': 'Oa09_reflectance:float',
-        'Oa10_reflectance': 'Oa10_reflectance:float',
-        'Oa11_reflectance': 'Oa11_reflectance:float',
-        'Oa12_reflectance': 'Oa12_reflectance:float',
-        'Oa16_reflectance': 'Oa16_reflectance:float',
-        'Oa17_reflectance': 'Oa17_reflectance:float',
-        'Oa18_reflectance': 'Oa18_reflectance:float',
-        'Oa21_reflectance': 'Oa21_reflectance:float',
-        'OAA': 'OAA:float',
-        'OZA': 'OZA:float',
-        'SAA': 'SAA:float',
-        'SZA': 'SZA:float',
-        'WQSF': 'WQSF_lsb:double',
-        'A865': 'A865:float',
-        'T865': 'T865:float',
-    }
-
-    s3_bands_l1 = {
-        'Oa01': 400,
-        'Oa02': 412.5,
-        'Oa03': 442.5,
-        'Oa04': 490,
-        'Oa05': 510,
-        'Oa06': 560,
-        'Oa07': 620,
-        'Oa08': 665,
-        'Oa09': 673.75,
-        'Oa10': 681.25,
-        'Oa11': 708.75,
-        'Oa12': 753.75,
-        'Oa13': 761.25,
-        'Oa14': 764.375,
-        'Oa15': 767.5,
-        'Oa16': 778.75,
-        'Oa17': 865,
-        'Oa18': 885,
-        'Oa19': 900,
-        'Oa20': 940,
-        'Oa21': 1020
-    }
-
-    s3_bands_l2 = {
-        'Oa01': 400,
-        'Oa02': 412.5,
-        'Oa03': 442.5,
-        'Oa04': 490,
-        'Oa05': 510,
-        'Oa06': 560,
-        'Oa07': 620,
-        'Oa08': 665,
-        'Oa09': 673.75,
-        'Oa10': 681.25,
-        'Oa11': 708.75,
-        'Oa12': 753.75,
-        'Oa16': 778.75,
-        'Oa17': 865,
-        'Oa18': 885,
-        'Oa21': 1020
-    }
 
     def initialize_geometries(self):
         """
@@ -293,38 +172,6 @@ class NcExplorer:
                     print_ncattr(var)
         return nc_attrs, nc_dims, nc_vars
 
-    @staticmethod  # TODO: as the name states, temp stuff either needs to be fixed, moved or removed.
-    def _temp_plot(lon, lat, plot_var, roi_lon=None, roi_lat=None):
-        # Miller projection:
-        m = Basemap(projection='mill',
-                    lat_ts=10,
-                    llcrnrlon=lon.min(),
-                    urcrnrlon=lon.max(),
-                    llcrnrlat=lat.min(),
-                    urcrnrlat=lat.max(),
-                    resolution='c')
-
-        # BR bbox
-        # m = Basemap(projection='mill',
-        #             llcrnrlat=-60,
-        #             llcrnrlon=-90,
-        #             urcrnrlat=20,
-        #             urcrnrlon=-25)
-
-        x, y = m(lon, lat)
-        # x, y = m(lon, lat, inverse=True)
-
-        m.pcolormesh(x, y, plot_var, shading='flat', cmap=plt.cm.jet)
-        m.colorbar(location='right')  # ('top','bottom','left','right')
-
-        # dd_lon, dd_lat = -60.014493, -3.158980  # Manaus
-        # if roi_lon is not None and roi_lat is not None:
-        xpt, ypt = m(roi_lon, roi_lat)
-        m.plot(xpt, ypt, 'rD')  # https://matplotlib.org/api/_as_gen/matplotlib.pyplot.plot.html
-        # m.drawcoastlines()
-        plt.show()
-        # plt.figure()
-
     def get_footprint_xy(self):
         pass
 
@@ -354,11 +201,8 @@ class NcExplorer:
         # extract only NetCDFs from the file list
         nc_files = [f for f in files if f.endswith('.nc')]
 
-
         # extract only the radiometric bands from the NetCDF list
         nc_bands = [b for b in nc_files if b.startswith('Oa')]
-
-
 
         if self.verbose:
             print(f'{self.class_label}.get_valid_band_files()\n'
@@ -372,6 +216,7 @@ class NcExplorer:
             return nc_bands
         else:
             return nc_files
+
     def get_point_data_in_single_band(self, band, lon=None, lat=None, target_lon=None, target_lat=None):
         # TODO: write docstrings
         if self.verbose:
@@ -394,16 +239,6 @@ class NcExplorer:
         # TODO: write docstrings
         if self.verbose:
             print(f'{self.class_label}.get_point_data_in_bands()\n')
-
-        # TODO: this looks weird...
-        # # [pos for pos, x in np.ndenumerate(np.array(lat)) if x == -0.21162]
-        # x_lon, y_lon = np.unravel_index((np.abs(lon - target_lon)).argmin(), lon.shape)
-        # x_lat, y_lat = np.unravel_index((np.abs(lat - target_lat)).argmin(), lat.shape)
-        # print(f'x_lon:{x_lon} y_lon:{y_lon} \n'
-        #       f'x_lat:{x_lat} y_lat:{y_lat}')
-        #
-        # relative_lat = y_lon + int((y_lat - y_lon) / 2)
-        # relative_lon = x_lat + int((x_lon - x_lat) / 2)
 
         # Mauricio's multidimensional wichcraft
         lat = lat[:, :, np.newaxis]
@@ -494,7 +329,6 @@ class NcExplorer:
         # self.rgb = np.vstack((red, green, blue))
         return red, green, blue
 
-
     def get_data_in_poly(self, poly_path, go_parallel=True):
         """
         Given an input polygon and image, return a dataframe containing
@@ -508,9 +342,9 @@ class NcExplorer:
 
         # III) Get the dictionary of available bands based on the product:
         if self.product.lower() == 'wfr':
-            bdict = self.wfr_files
+            bdict = dd.wfr_files
         elif self.product.lower() == 'syn':
-            bdict = self.syn_files
+            bdict = dd.syn_files
         else:
             print(f'Invalid product: {self.product.upper()}.')
             sys.exit(1)
@@ -518,7 +352,7 @@ class NcExplorer:
         if go_parallel:
             pbe = ParallelBandExtract()
             extracted_bands = pbe.parallel_get_bdata_in_nc(rr, cc, self.g_lon, self.g_lat,
-                                                           self.nc_folder, self.wfr_files_p)
+                                                           self.nc_folder, dd.wfr_files_p)
             return extracted_bands
 
         else:
@@ -546,7 +380,7 @@ class NcExplorer:
         df.drop(idx_names, inplace=True)
 
         if self.product.lower() == 'wfr':
-            df = df.rename(columns=self.wfr_vld_names)
+            df = df.rename(columns=dd.wfr_vld_names)
 
         # TODO: check necessity of renaming SYNERGY colnames.
         # if self.product.lower() == 'syn':
@@ -555,35 +389,6 @@ class NcExplorer:
         if len(df) == 0:
             print('EMPTY DATAFRAME WARNING! Unable to find valid pixels in file.')
         return df
-
-    # TODO: this is very specific, make it more generic.
-    def plot_s3_lv2_reflectances(self, radiance_list, icor, band_radiances, figure_title):
-        # TODO: write docstrings
-        ### L2 WFR
-        fig, ax1 = plt.subplots()
-        ax1.set_xlabel('Wavelenght (nm)')
-        ax1.set_ylabel('Reflectance')
-        ax1.set_title(figure_title, y=1, fontsize=16)
-        ax1.plot(list(self.s3_bands_l2.values()), icor, label='L1 iCOR', marker='o')
-        ax1.plot(list(self.s3_bands_l2.values()), band_radiances, label='L2 WFR', marker='o')
-        ax1.axhline(y=0, xmin=0, xmax=1, linewidth=0.5, color='black', linestyle='--')
-        ax1.set_xticks(list(self.s3_bands_l2.values()))
-        ax1.set_xticklabels(list(self.s3_bands_l2.values()))
-        ax1.tick_params(labelrotation=90, labelsize='small')
-        # ax1.set_yticklabels(labels=np.linspace(
-        #     ax1.get_yticks().min(), ax1.get_yticks().max(), len(ax1.get_yticks()) * 2),
-        #     rotation=0)
-        ax1.legend()
-        ax2 = ax1.twiny()
-        ax2.plot(np.linspace(min(list(self.s3_bands_l2.values())),
-                             max(list(self.s3_bands_l2.values())),
-                             num=len(self.s3_bands_l2)), band_radiances, alpha=0.0)
-        ax2.set_xticks(list(self.s3_bands_l2.values()))
-        ax2.set_xticklabels(list(self.s3_bands_l2.keys()))
-        ax2.tick_params(labelrotation=90, labelsize='xx-small')
-        ax2.set_title('Sentinel-3 Oa Bands', y=0.93, x=0.12, fontsize='xx-small')
-        # ax2.grid()
-        plt.show()
 
     def _extract_band_data(self, full_nc_path, unmask=False):
         '''
@@ -688,7 +493,8 @@ class NcExplorer:
             return a numpy masked array (Default = False).
 
         Returns:
-            df (pd.DataFrame): A pandas DataFrames containing a 2D matrix for the band name passed in the netcdf_valid_band_name.
+            df (pd.DataFrame): pandas DataFrames containing a 2D matrix for the band name
+            passed in the netcdf_valid_band_name.
 
         """
         if self.nc_folder is None:
@@ -711,58 +517,3 @@ class NcExplorer:
         if self.verbose:
             print(f'\nDone in {t_hour}h:{t_min}m:{t_sec}s\n')
         return df
-
-if __name__ == "__main__":
-
-    print('nc_explorer.py : hello from __main__ !')
-    # s3_netcdf_folder = 'D:\processing\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002.SEN3'
-
-    # exp = NcExplorer(input_nc_folder=s3_netcdf_folder,
-    #                  verbose=True)
-
-    # valid_nc_band_names = exp.get_valid_band_files()
-
-    # lon, lat = exp.get_lon_lat_from_nc()
-
-    # bands = exp.extract_data_from_netcdf_bands(valid_nc_band_names)
-
-    # Where is Manaus in the lat lon netcdf matrix?
-    # query_lon, query_lat = -60.014493, -3.158980
-
-    # exp._temp_plot(lon, lat, df, query_lon, query_lat)
-
-    # mat_x_y, band_radiances = exp.get_data_in_bands(bands, lon, lat, query_lon, query_lat)
-
-    # file = 'C:\Temp\S3A_OL_1_EFR____20190830T140112_20190830T140412_20190831T183009_0179_048_338_3060_LN1_O_NT_002_iCOR.tif'
-    # gdal_query_result = exp.get_gdal_value_by_lon_lat(file, query_lon, query_lat)
-    #
-    # icor = [float(x) for x in gdal_query_result.split()]
-    #
-    # exp.plot_s3_lv2_reflectances(band_radiances=band_radiances,
-    #                              icor=icor,
-    #                              figure_title=f'Sentinel-3 reflectance in pixel lon:{query_lon} lat:{query_lat}')
-
-    # shapefile_roi_mask = exp.gdal_kml_to_shp('D:\processing\\rio_solimoes.kml')
-
-    ### L1B
-    # fig, ax1 = plt.subplots()
-    # ax1.set_xlabel('Wavelenght (nm)')
-    # ax1.set_ylabel('Radiance')
-    # ax1.plot(list(s3_bands_l1.values()), band_radiances)
-    # ax1.set_xticks(list(s3_bands_l1.values()))
-    # ax1.set_xticklabels(list(s3_bands_l1.values()))
-    # ax1.tick_params(labelrotation=90, labelsize='small')
-    #
-    # ax2 = ax1.twiny()
-    # ax2.plot(np.linspace(min(list(s3_bands_l1.values())),
-    #                      max(list(s3_bands_l1.values())),
-    #                      num=len(s3_bands_l1)), band_radiances, alpha=0.0)
-    # ax2.set_xticks(list(s3_bands_l1.values()))
-    # ax2.set_xticklabels(list(s3_bands_l1.keys()))
-    #
-    # ax2.tick_params(labelrotation=90, labelsize='xx-small')
-    # ax2.grid()
-    # # ax2.set_visible(False)
-    # plt.show()
-
-
