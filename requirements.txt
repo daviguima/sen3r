@@ -1,5 +1,4 @@
 scipy
-python-decouple
 sentinelsat
 pandas
 geopandas
@@ -12,4 +11,3 @@ pillow
 scikit-image
 OWSLib
 rasterstats
-pyqt5-tools
