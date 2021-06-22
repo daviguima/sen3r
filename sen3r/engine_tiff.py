@@ -2,7 +2,7 @@ import os
 import sys
 import logging
 import argparse
-import outsourcing as outsrc
+#import outsourcing as outsrc
 from rasterstats import zonal_stats
 from datetime import datetime
 import numpy as np
@@ -29,48 +29,50 @@ class TFXP:
                15: 'B18-885',
                16: 'B21-1020'}
 
-    def tif_stats(self, vector, raster, keyname='mean'):
-        logging.info(f'Input vector: {vector}')
-        logging.info(f'Input raster: {raster}')
+    # TODO: fix outsorcing.py dependency
+    # def tif_stats(self, vector, raster, keyname='mean'):
+    #     logging.info(f'Input vector: {vector}')
+    #     logging.info(f'Input raster: {raster}')
+    #
+    #     gdbr = outsrc.GDALBridge()
+    #     bcount = gdbr.get_tiff_band_count(raster)
+    #     bdic = {}
+    #
+    #     input_filename = os.path.basename(raster)
+    #
+    #     # Removing everything from the raster name and leaving only the acquisition date
+    #     str_date_from_file = input_filename[16:31]
+    #     datetime_date_from_file = datetime.strptime(str_date_from_file, '%Y%m%dT%H%M%S')
+    #
+    #     bdic.update({'Datetime': str(datetime_date_from_file),
+    #                  'Date-String': str_date_from_file})
+    #
+    #     for n in range(bcount):
+    #         stats = zonal_stats(vector, raster, band=n + 1).pop()
+    #
+    #         if keyname:
+    #             bdic.update({self.band_id[n + 1]: stats[keyname]})
+    #         else:
+    #             bdic.update({self.band_id[n + 1]: stats})
+    #
+    #     bdic.update({'filename': input_filename})
+    #     logging.info(f'TFXP.tif_stats:\n{bdic}')
+    #
+    #     return bdic
 
-        gdbr = outsrc.GDALBridge()
-        bcount = gdbr.get_tiff_band_count(raster)
-        bdic = {}
-
-        input_filename = os.path.basename(raster)
-
-        # Removing everything from the raster name and leaving only the acquisition date
-        str_date_from_file = input_filename[16:31]
-        datetime_date_from_file = datetime.strptime(str_date_from_file, '%Y%m%dT%H%M%S')
-
-        bdic.update({'Datetime': str(datetime_date_from_file),
-                     'Date-String': str_date_from_file})
-
-        for n in range(bcount):
-            stats = zonal_stats(vector, raster, band=n + 1).pop()
-
-            if keyname:
-                bdic.update({self.band_id[n + 1]: stats[keyname]})
-            else:
-                bdic.update({self.band_id[n + 1]: stats})
-
-        bdic.update({'filename': input_filename})
-        logging.info(f'TFXP.tif_stats:\n{bdic}')
-
-        return bdic
-
-    def mass_atmcor(self, folder, destination=None):
-
-        work_dir = folder
-        field_files = os.listdir(work_dir)
-
-        for image in field_files:
-            if destination:
-                outsrc.ICORBridge.run_iCOR_on_image(folder + '\\' + image, destination)
-            else:
-                outsrc.ICORBridge.run_iCOR_on_image(folder + '\\' + image)
-
-        pass
+    # TODO: fix outsorcing.py dependency
+    # def mass_atmcor(self, folder, destination=None):
+    #
+    #     work_dir = folder
+    #     field_files = os.listdir(work_dir)
+    #
+    #     for image in field_files:
+    #         if destination:
+    #             outsrc.ICORBridge.run_iCOR_on_image(folder + '\\' + image, destination)
+    #         else:
+    #             outsrc.ICORBridge.run_iCOR_on_image(folder + '\\' + image)
+    #
+    #     pass
 
     # https://gis.stackexchange.com/questions/57005/python-gdal-write-new-raster-using-projection-from-old
     @staticmethod
