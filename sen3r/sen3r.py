@@ -2,10 +2,10 @@ import os
 
 import logging
 import time
-from core import utils
+
 import pandas as pd
 import numpy as np
-import outsourcing as out
+# import outsourcing as out
 import matplotlib.pyplot as plt
 import concurrent.futures
 
@@ -18,15 +18,16 @@ from matplotlib import gridspec
 
 import matplotlib
 import matplotlib.cm as cm
-from core.engine_nc import S3NcEngine
 
-from core.commons import DefaultDicts as dd
+from sen3r.engine_nc import NcEngine
+from sen3r.commons import DefaultDicts as DD
+from sen3r.commons import Utils
 
 
 class S3Engine:
 
     logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S', level=logging.INFO)
-    exp = S3NcEngine(external_use=True)
+    exp = NcEngine(external_use=True)
     imgdpi = 100
     rcparam = [14, 5.2]
     glint = 12.0
@@ -51,7 +52,7 @@ class S3Engine:
             print('Input must be of type int or float.')
             return False
         if binexval != '11111111111111111111111111111110':
-            flags = [dd.wfr_bin2flags[n] for n, e in enumerate(binexval[::-1]) if e == '1']
+            flags = [DD.wfr_bin2flags[n] for n, e in enumerate(binexval[::-1]) if e == '1']
         else:
             return False
 
@@ -62,8 +63,8 @@ class S3Engine:
         # TODO: Write docstrings.
         """
         if checklist:
-            if all(i in checklist for i in dd.wfr_keep):
-                if any(i in checklist for i in dd.wfr_remove):
+            if all(i in checklist for i in DD.wfr_keep):
+                if any(i in checklist for i in DD.wfr_remove):
                     return 0
                 else:
                     return 1
@@ -742,10 +743,10 @@ class S3Engine:
                   'Oa21_reflectance:float']
 
         # create a list with the value in (nm) of the 16 Sentinel-3 bands for L2 products.
-        s3_bands_tick = list(dd.s3_bands_l2.values())
+        s3_bands_tick = list(DD.s3_bands_l2.values())
 
         # create a list with the name of the 16 Sentinel-3 bands for L2 products.
-        s3_bands_tick_label = list(dd.s3_bands_l2.keys())
+        s3_bands_tick_label = list(DD.s3_bands_l2.keys())
 
         plt.rcParams['figure.figsize'] = [12, 6]
 
@@ -1010,7 +1011,7 @@ class S3Engine:
         # fig = plt.figure()
         ax = plt.axes()
         ax.set_title(fig_title, fontsize=16)
-        ax.plot(tms_dict['Datetime'], tms_dict[tms_key], marker='o', markersize=5, label=dd.wfr_l2_bnames[tms_key])
+        ax.plot(tms_dict['Datetime'], tms_dict[tms_key], marker='o', markersize=5, label=DD.wfr_l2_bnames[tms_key])
         ax.set_xlabel('Date', fontsize=16)
         ax.set_ylabel('Reflectance', fontsize=16)
         ax.legend()
@@ -1027,7 +1028,7 @@ class S3Engine:
         ax = plt.axes()
         ax.set_title(fig_title, fontsize=16)
         for element in tms_keys:
-            ax.plot(tms_dict['Datetime'], tms_dict[element], marker='o', markersize=5, label=dd.wfr_l2_bnames[element])
+            ax.plot(tms_dict['Datetime'], tms_dict[element], marker='o', markersize=5, label=DD.wfr_l2_bnames[element])
         ax.set_xlabel('Date', fontsize=16)
         ax.set_ylabel('Reflectance', fontsize=16)
         ax.legend()
@@ -1151,7 +1152,7 @@ class S3Engine:
 
         # Report
         images = [Image.open(x) for x in [svpt1, svpt2, svpt3, svpt4, svpt5]]
-        report = utils.pil_grid(images, 1)
+        report = Utils.pil_grid(images, 1)
 
         if output_rprt_path:
             report.save(svpt_report, resolution=100.0)

@@ -2,7 +2,7 @@ import os
 import sys
 import logging
 import argparse
-#import outsourcing as outsrc
+# import outsourcing as outsrc
 from rasterstats import zonal_stats
 from datetime import datetime
 import numpy as np
@@ -11,7 +11,7 @@ from gdalconst import *
 from osgeo import osr
 
 
-class TFXP:
+class s3r_tif:
     band_id = {1: 'B1-400',
                2: 'B2-412.5',
                3: 'B3-442.5',
@@ -108,9 +108,10 @@ class TFXP:
         DataSet.GetRasterBand(1).SetNoDataValue(NDV)
         return NewFileName
 
+
 if __name__ == '__main__':
 
-    run = TFXP()
+    run = s3r_tif()
 
     # LOG HOTFIX FOR PyCharm
     # https://stackoverflow.com/questions/30861524/logging-basicconfig-not-creating-log-file-when-i-run-in-pycharm

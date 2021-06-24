@@ -24,7 +24,7 @@ except:
     #       'You can still proceed without plotting any maps.')
 
 
-class S3NcEngine:
+class NcEngine:
     """
     Provide methods to manipulate NetCDF4 data from Sentinel-3 OLCI products.
     """
