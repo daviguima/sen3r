@@ -1,7 +1,6 @@
 import os
 import sys
-import core.utils as utils
-from core.commons import DefaultDicts as dd
+from sen3r import commons
 
 import numpy as np
 import pandas as pd
@@ -23,6 +22,8 @@ except:
     # logging.info('from mpl_toolkits.basemap import Basemap FAILED! '
     #       'You can still proceed without plotting any maps.')
 
+dd = commons.DefaultDicts()
+utils = commons.Utils()
 
 class NcEngine:
     """

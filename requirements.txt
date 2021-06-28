@@ -1,13 +1,5 @@
-scipy
-sentinelsat
-pandas
-geopandas
 numpy
-matplotlib
-pyproj
 pyshp
+Pillow
 netcdf4
-pillow
 scikit-image
-OWSLib
-rasterstats

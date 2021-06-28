@@ -2,8 +2,18 @@ import os
 import sys
 import time
 import json
-import geopandas
+import logging
+import zipfile
+import subprocess
+
 import numpy as np
+
+try:
+    from osgeo import gdal
+except:
+    print("Unable to import osgeo.gdal! SEN3R can still operate but some critical functions may fail.")
+
+
 from PIL import Image
 
 
@@ -266,14 +276,17 @@ class Utils:
         return im_grid
 
     @staticmethod
-    def geojson_to_polygon(poly_path):
+    def geojson_to_polygon(poly_or_path, read_file=True):
         """
         Transform a given input .geojson file into a list of coordinates
         poly_path: string (Path to .geojson file)
         return: dict (Containing one or several polygons depending on the complexity of the input .json)
         """
-        with open(poly_path) as f:
-            data = json.load(f)
+        if read_file:
+            with open(poly_or_path) as f:
+                data = json.load(f)
+        else:
+            data = poly_or_path
 
         poly_lst = []
         for feature in data['features']:
@@ -286,60 +299,110 @@ class Utils:
         return vertices
 
     @staticmethod
-    # KML -> GEOJson : https://github.com/mrcagney/kml2geojson
-    def shp_to_geojson(shp_file_path, json_out_path):
+    def shp2geojson_geopandas(shp_file_path, json_out_path):
+        import geopandas
         shpfile = geopandas.read_file(shp_file_path)
         f_name = os.path.basename(shp_file_path).split('.')[0]
         shpfile.to_file(os.path.join(json_out_path, f_name + '.geojson'), driver='GeoJSON')
 
     @staticmethod
-    # Just a small refactoring of the old code
-    def get_x_y(lat_arr, lon_arr, lat, lon):
-        grid = np.concatenate([lat_arr[..., None], lon_arr[..., None]], axis=2)
-
-        vector = np.array([lat, lon]).reshape(1, 1, -1)
-        subtraction = vector - grid
-        dist = np.linalg.norm(subtraction, axis=2)
-        result = np.where(dist == dist.min())
-        target_x_y = result[0][0], result[1][0]
-
-        return target_x_y
+    def shp2json_pyshp(shp_file_path):
+        import shapefile
+        with shapefile.Reader(shp_file_path) as shp:
+            geojson_data = shp.__geo_interface__
+        return geojson_data
 
     @staticmethod
-    # considering that creating the 2D grid consumes memory, we will get all coordinates in just one pass
-    def get_x_y_poly(lat_arr, lon_arr, polyline):
-        grid = np.concatenate([lat_arr[..., None], lon_arr[..., None]], axis=2)
-
-        # Polyline is a GeoJSON coordinate array
-        polyline = polyline.squeeze()
-
-        # loop through each vertice
-        vertices = []
-        for i in range(polyline.shape[0]):
-            vector = np.array([polyline[i, 1], polyline[i, 0]]).reshape(1, 1, -1)
-            subtraction = vector - grid
-            dist = np.linalg.norm(subtraction, axis=2)
-            result = np.where(dist == dist.min())
-            target_x_y = [result[0][0], result[1][0]]
-
-            vertices.append(target_x_y)
-        return np.array(vertices)
-
-    @staticmethod
-    def bbox(vertices):
+    # KML -> GEOJson : https://github.com/mrcagney/kml2geojson
+    def kml2json_gdal(input_kml_path, output_json_path=None):
         """
-        Get the bounding box of the vertices. Just for visualization purposes
+        Converts a given google earth engine KML file to SHP.
         """
-        vertices = np.vstack(vertices)
-        ymin = np.min(vertices[:, 0])
-        ymax = np.max(vertices[:, 0])
-        xmin = np.min(vertices[:, 1])
-        xmax = np.max(vertices[:, 1])
-        return xmin, xmax, ymin, ymax
+        if output_json_path:
+            filename = os.path.basename(input_kml_path).split('.')[0] + '.geojson'
+            output_json = os.path.join(output_json_path, filename)
+        else:
+            output_json = input_kml_path.split('.')[0] + '.geojson'
+
+        logging.info('Opening subprocess call to GDAL:ogr2ogr...')
+        subprocess.call(f'ogr2ogr -f "GeoJSON" {output_json} {input_kml_path}', shell=True)
+        logging.info(f'{output_json} created.')
+
+        return output_json
 
     @staticmethod
-    # https://stackoverflow.com/questions/5389507/iterating-over-every-two-elements-in-a-list
-    def grouped(iterable, n):
-        """s -> (s0,s1,s2,...sn-1), (sn,sn+1,sn+2,...s2n-1), (s2n,s2n+1,s2n+2,...s3n-1), ..."""
-        return zip(*[iter(iterable)] * n)
+    # KML -> GEOJson : https://github.com/mrcagney/kml2geojson
+    def kmz2kml_unzip(input_kmz_path, output_kml_path=None):
+        """
+        Converts a given google earth engine KMZ file to KML by extracting its content.
+        """
+        fname = os.path.basename(input_kmz_path).split('.')[0]
+        if output_kml_path:
+            filename = fname + '.geojson'
+            output_kml = os.path.join(output_kml_path, filename)
+        else:
+            output_json = input_kmz_path.split('.')[0] + '.kml'
 
+        logging.info('Extracting KMZ content...')
+        with zipfile.ZipFile(input_kmz_path, 'r') as zip_ref:
+            zip_ref.extractall(output_kml_path)
+        # Search for everything ended in .kml inside the extracted files folder (expects 1) and remove it from the list.
+        kml_file = [os.path.join(output_kml_path, f) for f in os.listdir(output_kml_path) if f.endswith('.kml')].pop()
+        # Create a new name for the output file.
+        kml_result = os.path.join(output_kml_path, fname + '.kml')
+        # Rename whatever came out of the KMZ.zip to fname.kml
+        os.rename(kml_file, kml_result)
+        logging.info(f'{kml_result} created.')
+        return kml_result
+
+    @staticmethod
+    def get_roi_format2vertex(roi, aux_folder_out=None):
+        """
+        Test the format of the input vector file and return a list of vertices.
+
+        :param roi: (str) path to input vector file to be tested and processed.
+        :param aux_folder_out: (str) path to save ancillary data.
+        :return python list of arrays: (list) containing one array for each vector feature.
+        """
+
+        def parse_kml(path2vector):
+            logging.info('KML file detected. Attempting to parse...')
+            vtx_path = Utils.kml2json_gdal(input_kml_path=path2vector, output_json_path=aux_folder_out)
+            return Utils.geojson_to_polygon(vtx_path)
+
+        def parse_kmz(path2vector):
+            logging.info('KMZ file detected. Attempting to parse...')
+            # KMZ -> KML
+            vtx_path = Utils.kmz2kml_unzip(input_kmz_path=path2vector, output_kml_path=aux_folder_out)
+            # KML -> JSON
+            vtx = Utils.kml2json_gdal(input_kml_path=vtx_path, output_json_path=aux_folder_out)
+            # JSON -> VTX
+            return Utils.geojson_to_polygon(vtx)
+
+        def parse_json(path2vector):
+            logging.info('JSON file detected. Attempting to parse...')
+            return Utils.geojson_to_polygon(path2vector)
+
+        def parse_shp(path2vector):
+            logging.info('SHP file detected. Attempting to parse...')
+            # Convert SHP -> JSON
+            vtx = Utils.shp2json_pyshp(path2vector)
+            # Convert JSON -> vertex
+            return Utils.geojson_to_polygon(vtx, read_file=False)
+
+        roi_typename = os.path.basename(roi).split('.')[1]
+
+        roi_options = {'kml': parse_kml,
+                       'kmz': parse_kmz,
+                       'shp': parse_shp,
+                       'json': parse_json,
+                       'geojson': parse_json}
+
+        if roi_typename in roi_options:
+            vertex = roi_options[roi_typename](roi)
+        else:
+            logging.info(f'Input ROI {os.path.basename(roi)} not recognized as a valid vector file. '
+                         f'Make sure the input file is of type .shp .kml .kmz .json or .geojson')
+            sys.exit(1)
+
+        return vertex
