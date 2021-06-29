@@ -25,6 +25,7 @@ class Core:
         self.OUTPUT_DIR = self.arguments['out']
         self.ROI = self.arguments['roi']
         self.AUX_DIR = os.path.join(self.OUTPUT_DIR, 'extras')  # AUX is a reserved name in Windows, therefore extras...
+        self.AUX_LOG_DIR = os.path.join(self.AUX_DIR, 'PARALLEL_LOG')
         self.IMG_DIR = os.path.join(self.OUTPUT_DIR, 'images')
         self.INSTANCE_TIME_TAG = datetime.now().strftime('%Y%m%dT%H%M%S')
         self.LOGFILE = os.path.join(self.OUTPUT_DIR, f'SEN3R_{self.INSTANCE_TIME_TAG}.log')
@@ -49,8 +50,6 @@ class Core:
 
     def wfr2csv(self, wfr_img_folder):
         img = wfr_img_folder
-        file_base_name = os.path.basename(img).split('.')[0]
-        logging.info(f'Processing: {file_base_name}')
 
         # DEPRECATED:
         # This would skip the file if it already existed.
@@ -59,13 +58,14 @@ class Core:
         #     print('Skipped.')
 
         # Class instance of sen3r.nc4_agent.py:NcEngine
-        nce = NcEngine(input_nc_folder=img, product='wfr')
+        nce = NcEngine(input_nc_folder=img, log_folder=self.AUX_LOG_DIR, product='wfr')
 
-        df = nce.get_data_in_poly(poly_path=poly, go_parallel=False)
+        # Get the values inside the input ROI vertices
+        # df = nce.get_data_in_poly(poly_path=poly, go_parallel=False)
 
         # if df is not None:
-        logging.info(f'Saving DF: {f_b_name}')
-        df.to_csv(os.path.join(out_dir, f_b_name + '.csv'), index=False)
+        # logging.info(f'Saving DF: {f_b_name}')
+        # df.to_csv(os.path.join(out_dir, f_b_name + '.csv'), index=False)
         pass
 
     def build_intermediary_files(self):
@@ -82,13 +82,12 @@ class Core:
         Path(self.AUX_DIR).mkdir(parents=True, exist_ok=True)
         logging.info(f'Attempting to extract geometries from: {self.ROI}')
         self.vertices = Utils.get_roi_format2vertex(roi=self.ROI, aux_folder_out=self.AUX_DIR)
-
+        logging.info(f'Generating ancillary parallel jobs log folder: {self.AUX_LOG_DIR}')
+        Path(self.AUX_LOG_DIR).mkdir(parents=True, exist_ok=True)
         with concurrent.futures.ProcessPoolExecutor(max_workers=os.cpu_count() - 1) as executor:
             try:
                 result = list(executor.map(self.wfr2csv, self.sorted_file_list))
             except concurrent.futures.process.BrokenProcessPool as ex:
                 print(f"{ex} This might be caused by limited system resources. "
                       f"Try increasing system memory or disable concurrent processing. ")
-
-
-
+        pass
