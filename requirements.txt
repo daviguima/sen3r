@@ -1,5 +1,6 @@
 numpy
 pyshp
+pandas
 Pillow
 netcdf4
 scikit-image

@@ -32,7 +32,6 @@ def main():
     # | STORE INPUT VARS INSIDE SEN3R OBJECT |--------------------------------------------------------------------------
     # '--------------------------------------'
     args = parser.parse_args().__dict__  # Converts the input arguments from Namespace() to dict
-    s3r = Core(args)  # Declare a SEN3R Core Object
 
     if args['version']:
         print(f'SEN3R version: {sen3r.__version__}')
@@ -41,6 +40,7 @@ def main():
         print('Please specify required INPUT/OOUTPUT folders and REGION of interest (-i, -o, -r)')
 
     else:
+        s3r = Core(args)  # Declare a SEN3R Core Object
         # ,------------,
         # | LOG SETUP  |------------------------------------------------------------------------------------------------
         # '------------'

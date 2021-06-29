@@ -61,7 +61,7 @@ class Core:
         nce = NcEngine(input_nc_folder=img, log_folder=self.AUX_LOG_DIR, product='wfr')
 
         # Get the values inside the input ROI vertices
-        # df = nce.get_data_in_poly(poly_path=poly, go_parallel=False)
+        df = nce.get_data_in_poly(poly_path=poly, go_parallel=False)
 
         # if df is not None:
         # logging.info(f'Saving DF: {f_b_name}')
