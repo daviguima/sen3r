@@ -24,7 +24,7 @@ def main():
     parser.add_argument('-np', '--no-pdf', help='Do not generate PDF report.', action='store_true')
     parser.add_argument("-s", "--single",
                         help="Single mode: run SEN3R over only one image instead of a whole directory."
-                             "Optional.", action='store_true')
+                             " Optional.", action='store_true')
     parser.add_argument('-v', '--version', help='Displays current package version.', action='store_true')
     parser.add_argument('-l', '--silent', help='Run silently, stop printing to console.', action='store_true')
 
@@ -62,7 +62,9 @@ def main():
         s3r.build_intermediary_files()
 
         # LEVEL-2
+        lista = post-proc
 
+        # STATS
     pass
 
 

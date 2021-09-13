@@ -48,20 +48,15 @@ class Core:
 
         return sorted_output_files_fullpath
 
-    def wfr2csv(self, wfr_img_folder):
+    def wfr2csv(self, wfr_img_folder, vertices):
+
         img = wfr_img_folder
 
-        # DEPRECATED:
-        # This would skip the file if it already existed.
-        # Current release will overwrite it regardless if it exists or not.
-        # if os.path.isfile(os.path.join(out_dir, f_b_name + '.csv')):
-        #     print('Skipped.')
-
-        # Class instance of sen3r.nc4_agent.py:NcEngine
+        # Class instance of NcEngine containing information about all the bands.
         nce = NcEngine(input_nc_folder=img, log_folder=self.AUX_LOG_DIR, product='wfr')
 
         # Get the values inside the input ROI vertices
-        df = nce.get_data_in_poly(poly_path=poly, go_parallel=False)
+        df = nce.get_data_inside_polygon(vertices=vertices)
 
         # if df is not None:
         # logging.info(f'Saving DF: {f_b_name}')
@@ -86,7 +81,7 @@ class Core:
         Path(self.AUX_LOG_DIR).mkdir(parents=True, exist_ok=True)
         with concurrent.futures.ProcessPoolExecutor(max_workers=os.cpu_count() - 1) as executor:
             try:
-                result = list(executor.map(self.wfr2csv, self.sorted_file_list))
+                result = list(executor.map(self.wfr2csv, self.sorted_file_list, self.vertices))
             except concurrent.futures.process.BrokenProcessPool as ex:
                 print(f"{ex} This might be caused by limited system resources. "
                       f"Try increasing system memory or disable concurrent processing. ")

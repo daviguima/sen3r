@@ -406,3 +406,22 @@ class Utils:
             sys.exit(1)
 
         return vertex
+
+    @staticmethod
+    def get_x_y_poly(lat_arr, lon_arr, polyline):
+        grid = np.concatenate([lat_arr[..., None], lon_arr[..., None]], axis=2)
+
+        # Polyline is a GeoJSON coordinate array
+        polyline = polyline.squeeze()
+
+        # loop through each vertice
+        vertices = []
+        for i in range(polyline.shape[0]):
+            vector = np.array([polyline[i, 1], polyline[i, 0]]).reshape(1, 1, -1)
+            subtraction = vector - grid
+            dist = np.linalg.norm(subtraction, axis=2)
+            result = np.where(dist == dist.min())
+            target_x_y = [result[0][0], result[1][0]]
+
+            vertices.append(target_x_y)
+        return np.array(vertices)
