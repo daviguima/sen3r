@@ -25,7 +25,7 @@ conda install -c conda-forge gdal
 ```
 Install the requirements:
 ```
-pip install -r requirements
+pip install -r requirements.txt
 ```
 Run the setup:
 ```
