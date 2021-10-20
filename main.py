@@ -6,6 +6,7 @@ import argparse
 
 from sen3r.sen3r import Core
 from sen3r.commons import Utils
+from datetime import datetime
 
 
 def main():
@@ -26,7 +27,6 @@ def main():
                         help="Single mode: run SEN3R over only one image instead of a whole directory."
                              " Optional.", action='store_true')
     parser.add_argument('-v', '--version', help='Displays current package version.', action='store_true')
-    parser.add_argument('-l', '--silent', help='Run silently, stop printing to console.', action='store_true')
 
     # ,--------------------------------------,
     # | STORE INPUT VARS INSIDE SEN3R OBJECT |--------------------------------------------------------------------------
@@ -37,34 +37,26 @@ def main():
         print(f'SEN3R version: {sen3r.__version__}')
 
     elif (args['input'] is None) or (args['out'] is None) or (args['roi'] is None):
-        print('Please specify required INPUT/OOUTPUT folders and REGION of interest (-i, -o, -r)')
+        print('Please specify required INPUT/OUTPUT folders and REGION of interest (-i, -o, -r)')
 
     else:
-        s3r = Core(args)  # Declare a SEN3R Core Object
         # ,------------,
         # | LOG SETUP  |------------------------------------------------------------------------------------------------
         # '------------'
-        if args['silent']:
-            logging.basicConfig(filename=s3r.LOGFILE, format='%(asctime)s - %(message)s',
-                                datefmt='%d/%m/%Y %H:%M:%S', level=logging.INFO)
-        else:  # VERBOSE (Default)
-            logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S',
-                                handlers=[logging.FileHandler(s3r.LOGFILE), logging.StreamHandler()])
-
-        logging.info(f'Starting SEN3R {s3r.VERSION} ({sen3r.__version__})')
-        logging.info('------')
-        logging.info('Input arguments:')
+        # args['logfile'] = os.path.join(args['out'], 'sen3r_'+datetime.now().strftime('%Y%m%dT%H%M%S')+'.log')
+        # args['logger'] = Utils.create_log_handler(args['logfile'])
+        s3r = Core(args)  # Declare a SEN3R Core Object
+        s3r.log.info(f'Starting SEN3R {s3r.VERSION} ({sen3r.__version__})')
+        s3r.log.info('------')
+        s3r.log.info('Input arguments:')
         for key in args:
-            logging.info(f'{key}: {args[key]}')
-        logging.info('------')
+            s3r.log.info(f'{key}: {args[key]}')
+        s3r.log.info('------')
 
-        # LEVEL-1
-        s3r.build_intermediary_files()
-
-        # LEVEL-2
-        lista = post-proc
-
-        # STATS
+        if args['single']:  # Single mode
+            s3r.build_single_file()
+        else:  # Default mode: several images
+            s3r.build_intermediary_files()
     pass
 
 

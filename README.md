@@ -5,7 +5,7 @@ processing over ESA's Sentinel-3 mission without the hassle of installing [SNAP]
 (We have no intention of replacing SNAP). 
 <br>
 <br>
-[!] WARNING: GDAL is a requirement for the installation therefore, 
+[!] WARNING: GDAL is a requirement for the installation, therefore, 
 usage of a conda environment 
 ([Anaconda.org](https://www.anaconda.com/products/individual)) 
 is strongly recommended. Unless you know what you are doing (-:

@@ -239,6 +239,29 @@ class DefaultDicts:
 
 class Utils:
 
+    def __init__(self, parent_log=None):
+        if parent_log:
+            self.log = parent_log
+
+    @staticmethod
+    def create_log_handler(fname):
+        # based in this answer:
+        # https://stackoverflow.com/questions/62835466/create-a-separate-logger-for-each-process-when-using-concurrent-futures-processp
+        logger = logging.getLogger(name=fname)
+        logger.setLevel(logging.INFO)
+
+        fileHandler = logging.FileHandler(fname)
+        fileHandler.setLevel(logging.INFO)
+
+        logger.addHandler(fileHandler)
+        logger.addHandler(logging.StreamHandler())
+
+        formatter = logging.Formatter('%(asctime)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
+
+        fileHandler.setFormatter(formatter)
+
+        return logger
+
     @staticmethod
     def tic():
         global _start_time
@@ -356,7 +379,7 @@ class Utils:
         return kml_result
 
     @staticmethod
-    def get_roi_format2vertex(roi, aux_folder_out=None):
+    def roi2vertex(roi, aux_folder_out=os.getcwd()):
         """
         Test the format of the input vector file and return a list of vertices.
 
@@ -425,3 +448,15 @@ class Utils:
 
             vertices.append(target_x_y)
         return np.array(vertices)
+
+    @staticmethod
+    def bbox(vertices):
+        """
+        Get the bounding box of the vertices. Just for visualization purposes
+        """
+        vertices = np.vstack(vertices)
+        ymin = np.min(vertices[:, 0])
+        ymax = np.max(vertices[:, 0])
+        xmin = np.min(vertices[:, 1])
+        xmax = np.max(vertices[:, 1])
+        return xmin, xmax, ymin, ymax
