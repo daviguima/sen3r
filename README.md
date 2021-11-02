@@ -58,8 +58,17 @@ optional arguments:
   -l, --silent          Run silently, stop printing to console.
 
 ```
-Usage:
+[!]
+For OS compatibility reasons the supported vector formats for `-r` are `.json` and `.geojson` but there are
+implementations in the code to also support: `.shp`, `.kml` and `.kmz`. Just check for them 
+inside `commons.py` > `Utils` > `roi2vertex`.
+
+Usage (for a folder of WFR files):
 ```
-sen3r -i "C:\PATH\TO\L2_WFR_FILES" -o "C:\sen3r_out" -r "C:\path\to\your_vector.kml"
+sen3r -i "C:\PATH\TO\L2_WFR_FILES" -o "C:\sen3r_out" -r "C:\path\to\your_vector.json"
 ```
-Currently supported vector formats for `-r` are: `.shp`, `.kml`, `.kmz`, `.json` and `.geojson`
+
+For a single WFR file:
+```
+sen3r -s -i "C:\PATH\TO\L2_WFR_IMG" -o "C:\sen3r_out" -r "C:\path\to\your_vector.json"
+```

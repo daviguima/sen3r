@@ -46,6 +46,7 @@ def main():
         # args['logfile'] = os.path.join(args['out'], 'sen3r_'+datetime.now().strftime('%Y%m%dT%H%M%S')+'.log')
         # args['logger'] = Utils.create_log_handler(args['logfile'])
         s3r = Core(args)  # Declare a SEN3R Core Object
+        print(f'Starting SEN3R - LOG operations saved at:{s3r.arguments["logfile"]}')
         s3r.log.info(f'Starting SEN3R {s3r.VERSION} ({sen3r.__version__})')
         s3r.log.info('------')
         s3r.log.info('Input arguments:')
@@ -54,9 +55,16 @@ def main():
         s3r.log.info('------')
 
         if args['single']:  # Single mode
-            s3r.build_single_file()
+            band_data, img_data, doneList = s3r.build_single_file()
+
         else:  # Default mode: several images
-            s3r.build_intermediary_files()
+            doneList = s3r.build_intermediary_files()
+            print('cams_args:', s3r.arguments['cams'])
+            if s3r.arguments["cams"]:
+                s3r.process_csv_list(raw_csv_list=doneList, use_cams=True)
+            else:
+                s3r.process_csv_list(raw_csv_list=doneList)
+
     pass
 
 
@@ -77,5 +85,5 @@ if __name__ == '__main__':
     t2 = time.perf_counter()
     outputstr = f'Finished in {round(t2 - t1, 2)} second(s).'
     final_message = f'Elapsed execution time: {t_hour}h : {t_min}m : {t_sec}s'
-    logging.info(outputstr)
-    logging.info(final_message)
+    print(outputstr)
+    print(final_message)

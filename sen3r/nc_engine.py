@@ -29,7 +29,6 @@ class NcEngine:
         self.netcdf_valid_band_list = self.get_valid_band_files(rad_only=False)
 
         if self.product.lower() == 'wfr':
-            # print(f'{os.getpid()} - Initializing geometries for: {self.nc_base_name}')
             self.log.info(f'{os.getpid()} - Initializing geometries for: {self.nc_base_name}')
             geo_coord = nc.Dataset(self.nc_folder / 'geo_coordinates.nc')
             self.g_lat = geo_coord['latitude'][:]

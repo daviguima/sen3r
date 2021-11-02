@@ -19,6 +19,23 @@ from PIL import Image
 
 class DefaultDicts:
 
+    wfr_norm_s3_bands = ['Oa01_reflectance:float',
+                         'Oa02_reflectance:float',
+                         'Oa03_reflectance:float',
+                         'Oa04_reflectance:float',
+                         'Oa05_reflectance:float',
+                         'Oa06_reflectance:float',
+                         'Oa07_reflectance:float',
+                         'Oa08_reflectance:float',
+                         'Oa09_reflectance:float',
+                         'Oa10_reflectance:float',
+                         'Oa11_reflectance:float',
+                         'Oa12_reflectance:float',
+                         'Oa16_reflectance:float',
+                         'Oa17_reflectance:float',
+                         'Oa18_reflectance:float',
+                         'Oa21_reflectance:float']
+
     wfr_l2_bnames = {'B1-400': 'Oa01: 400 nm',
                      'B2-412.5': 'Oa02: 412.5 nm',
                      'B3-442.5': 'Oa03: 442.5 nm',
@@ -254,7 +271,7 @@ class Utils:
         fileHandler.setLevel(logging.INFO)
 
         logger.addHandler(fileHandler)
-        logger.addHandler(logging.StreamHandler())
+        # logger.addHandler(logging.StreamHandler())
 
         formatter = logging.Formatter('%(asctime)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
 
@@ -327,6 +344,7 @@ class Utils:
         shpfile = geopandas.read_file(shp_file_path)
         f_name = os.path.basename(shp_file_path).split('.')[0]
         shpfile.to_file(os.path.join(json_out_path, f_name + '.geojson'), driver='GeoJSON')
+        # TODO: read the 
 
     @staticmethod
     def shp2json_pyshp(shp_file_path):
@@ -411,7 +429,8 @@ class Utils:
             # Convert SHP -> JSON
             vtx = Utils.shp2json_pyshp(path2vector)
             # Convert JSON -> vertex
-            return Utils.geojson_to_polygon(vtx, read_file=False)
+            # return Utils.geojson_to_polygon(vtx, read_file=False)
+            return Utils.shp2geojson_geopandas(vtx)
 
         roi_typename = os.path.basename(roi).split('.')[1]
 

@@ -3,4 +3,5 @@ pyshp
 pandas
 Pillow
 netcdf4
+openpyxl
 scikit-image
