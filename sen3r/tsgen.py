@@ -92,7 +92,7 @@ class TsGenerator:
         return a * (x) ** (b) + c
 
     @staticmethod
-    def db_scan(df, bands, column_name='cluster', eps=0.1, min_samples=5):
+    def db_scan(df, bands, column_name='cluster', eps=0.01, min_samples=5):
         clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(df[bands])
         df[column_name] = clustering.labels_
 
@@ -961,6 +961,47 @@ class TsGenerator:
             plt.close(fig)
 
         if not savepathname:
+            plt.show()
+
+    def plot_scattercluster(self, event_df, col_x='B17-865', col_y='B8-665', col_color='T865:float',
+                            cluster_col='cluster', nx=None, ny=None, mplcolormap='viridis', title=None, savepath=None):
+
+        plt.rcParams['figure.figsize'] = [14, 5.2]
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+
+        if title:
+            fig.suptitle(title)
+
+        skt1 = ax1.scatter(event_df[col_x], event_df[col_y], c=event_df[col_color], cmap=mplcolormap)
+        cbar = fig.colorbar(skt1, ax=ax1)
+        cbar.set_label(col_color)
+
+        # Get unique names of clusters
+        uniq = list(set(event_df[cluster_col]))
+
+        # iterate to plot each cluster
+        for i in range(len(uniq)):
+            indx = event_df[cluster_col] == uniq[i]
+            ax2.scatter(event_df[col_x][indx], event_df[col_y][indx], label=uniq[i])
+
+        # Add x,y annotation
+        if nx:
+            ax1.plt.plot(nx, ny,
+                         marker='D',
+                         markersize=20,
+                         markerfacecolor="None",
+                         markeredgecolor='k')
+
+        ax1.set_xlabel(col_x)
+        ax1.set_ylabel(col_y)
+        ax2.set_xlabel(col_x)
+
+        plt.legend()
+
+        if savepath:
+            plt.savefig(savepath, dpi=self.imgdpi, bbox_inches='tight')
+            plt.close(fig)
+        else:
             plt.show()
 
     def plot_time_series(self, tms_dict, tms_key, fig_title, save_title=None):

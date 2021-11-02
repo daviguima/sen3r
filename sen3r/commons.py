@@ -19,6 +19,13 @@ from PIL import Image
 
 class DefaultDicts:
 
+    clustering_methods = {'M0': ['Oa17_reflectance:float', 'Oa21_reflectance:float'],
+                          'M1': ['Oa17_reflectance:float', 'T865:float', 'A865:float'],
+                          'M2': ['Oa21_reflectance:float', 'T865:float', 'A865:float'],
+                          'M3': ['Oa17_reflectance:float', 'Oa21_reflectance:float', 'T865:float'],
+                          'M4': ['Oa08_reflectance:float', 'Oa17_reflectance:float', 'Oa21_reflectance:float'],
+                          'M5': ['Oa04_reflectance:float', 'Oa08_reflectance:float', 'Oa21_reflectance:float']}
+
     wfr_norm_s3_bands = ['Oa01_reflectance:float',
                          'Oa02_reflectance:float',
                          'Oa03_reflectance:float',
@@ -128,10 +135,6 @@ class DefaultDicts:
 
     # Pixels must include these flags:
     wfr_keep = ['INLAND_WATER']
-
-    # ,---------------------,
-    # | NetCDF engine dicts |-------------------------------------------------------------------------------------------
-    # '---------------------'
 
     # TODO: used in parallel only (verify).
     wfr_files_p = (('w_aer.nc', 'A865'),
@@ -253,6 +256,28 @@ class DefaultDicts:
         'Oa21': 1020
     }
 
+    dbs_colors = {-1: 'C0', 0: 'C1', 1: 'C2', 2: 'C3', 3: 'C4', 4: 'C5', 5: 'C6', 6: 'C7', 7: 'C8', 8: 'C9', 9: 'k',
+                  10: 'k', 11: 'k', 12: 'k', 13: 'k', 14: 'k', 15: 'k', 16: 'k', 17: 'k', 18: 'k', 19: 'k', 20: 'k'}
+
+    dbs_s3b_l2 = {
+        'Oa01_reflectance:float': 400,
+        'Oa02_reflectance:float': 412.5,
+        'Oa03_reflectance:float': 442.5,
+        'Oa04_reflectance:float': 490,
+        'Oa05_reflectance:float': 510,
+        'Oa06_reflectance:float': 560,
+        'Oa07_reflectance:float': 620,
+        'Oa08_reflectance:float': 665,
+        'Oa09_reflectance:float': 673.75,
+        'Oa10_reflectance:float': 681.25,
+        'Oa11_reflectance:float': 708.75,
+        'Oa12_reflectance:float': 753.75,
+        'Oa16_reflectance:float': 778.75,
+        'Oa17_reflectance:float': 865,
+        'Oa18_reflectance:float': 885,
+        'Oa21_reflectance:float': 1020
+    }
+
 
 class Utils:
 
@@ -294,6 +319,12 @@ class Utils:
     @staticmethod
     def repeat_to_length(s, wanted):
         return (s * (wanted // len(s) + 1))[:wanted]
+
+    @staticmethod
+    def find_nearest(array, value):
+        array = np.asarray(array)
+        idx = (np.abs(array - value)).argmin()
+        return idx
 
     @staticmethod
     def pil_grid(images, max_horiz=np.iinfo(int).max):
@@ -344,7 +375,6 @@ class Utils:
         shpfile = geopandas.read_file(shp_file_path)
         f_name = os.path.basename(shp_file_path).split('.')[0]
         shpfile.to_file(os.path.join(json_out_path, f_name + '.geojson'), driver='GeoJSON')
-        # TODO: read the 
 
     @staticmethod
     def shp2json_pyshp(shp_file_path):

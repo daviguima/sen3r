@@ -177,9 +177,11 @@ class Core:
         band_data.to_csv(out_dir, index=False)
         return band_data, img_data, [out_dir]
 
-    def process_csv_list(self, raw_csv_list, irmax=0.2, use_cams=False):
+    def process_csv_list(self, raw_csv_list, irmax=0.2, use_cams=False, do_clustering=True, k_method='M5'):
         """
 
+        :param k_method:
+        :param do_clustering:
         :param use_cams:
         :param irmax:
         :param raw_csv_list: [List] containing the absolute path to files extracted by self.get_s3_data
@@ -207,11 +209,6 @@ class Core:
         # Start timer
         t1 = time.perf_counter()
 
-        # Desclaring lists for further validation
-        checklist = {}
-        skiplst = []
-        donelst = []
-
         max_aot = False
 
         # Update RAW DFs
@@ -231,6 +228,7 @@ class Core:
             figtitl = os.path.basename(out_dir) + '_' + figdate
             savpt_sctr = os.path.join(img_dir, figdate + '_0.png')
             savpt_rrs = os.path.join(img_dir, figdate + '_1.png')
+            savpt_k = os.path.join(img_dir, figdate + '_2.png')
 
             if use_cams:
                 # Find the equivalent observation day in CAMS
@@ -257,27 +255,38 @@ class Core:
 
             except Exception as e:
                 print("type error: " + str(e))
-                skiplst.append(img)
                 continue
-
-            # Apply DBSCAN over the remaining DF entries for further filtering
-            # WARNING: THE CLUSTERING WILL ONLY WORK OVER THE RADIOMETRIC BANDS
-            tsgen.db_scan(df, ['Oa17_reflectance:float', 'Oa21_reflectance:float'])
-            clusters = df.groupby(by='cluster').mean()
-
-            # drop the noise
-            clusters.drop(-1, inplace=True, errors='ignore')
-
-            # if there is at least 1 valid cluster
-            if len(clusters) > 0:
-                df = df.append(clusters[clusters['B21-1020'] == clusters['B21-1020'].min()].iloc[0].rename(date))
 
             if len(df) < 1:
                 print(f'Skipping empty CSV: {dfpth}')
-                skiplst.append(img)
                 continue
-            else:
-                donelst.append(img)
+
+            # ,--------------------,
+            # | DBSCAN Clustering  |------------------------------------------------------------------------------------
+            # '--------------------'
+            if do_clustering:
+                # Backup the DF before cleaning it with DBSCAN
+                bkpdf = df.copy()
+
+                # Apply DBSCAN
+                tsgen.db_scan(df, dd.clustering_methods[k_method])
+
+                # Plot and save the identified clusters
+                tsgen.plot_scattercluster(df, col_x='Oa17_reflectance:float', col_y='Oa08_reflectance:float',
+                                          col_color='T865:float', title=f'DBSCAN {figdate}', savepath=savpt_k)
+
+                # Delete rows classified as noise:
+                indexNames = df[df['cluster'] == -1].index
+                df.drop(indexNames, inplace=True)
+
+                if len(df) > 1:
+                    clusters = df.groupby(by='cluster').median()
+                    k = Utils.find_nearest(clusters['Oa21_reflectance:float'], 0)
+                    # Delete rows from the other clusters:
+                    indexNames = df[df['cluster'] != k].index
+                    df.drop(indexNames, inplace=True)
+                else:
+                    df = bkpdf.copy()
 
             # generate plot v3 --------------------------
             tsgen.plot_sidebyside_sktr(x1_data=df['Oa08_reflectance:float'],

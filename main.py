@@ -21,6 +21,7 @@ def main():
     parser.add_argument("-r", "--roi", help="Region of interest (SHP, KML or GeoJSON). Required", type=str)
     parser.add_argument("-p", "--product", help='Currently only WFR is available.', default='WFR', type=str)
     parser.add_argument("-c", "--cams", help="Path to search for auxiliary CAMS file. Optional.", type=str)
+    parser.add_argument("-k", "--cluster", help="Which method to use for clustering. Optional.", default='M3', type=str)
     parser.add_argument('-ng', '--no-graphics', help='Do not generate graphical reports.', action='store_true')
     parser.add_argument('-np', '--no-pdf', help='Do not generate PDF report.', action='store_true')
     parser.add_argument("-s", "--single",
@@ -61,9 +62,9 @@ def main():
             doneList = s3r.build_intermediary_files()
             print('cams_args:', s3r.arguments['cams'])
             if s3r.arguments["cams"]:
-                s3r.process_csv_list(raw_csv_list=doneList, use_cams=True)
+                s3r.process_csv_list(raw_csv_list=doneList, use_cams=True, k_method=s3r.arguments['cluster'])
             else:
-                s3r.process_csv_list(raw_csv_list=doneList)
+                s3r.process_csv_list(raw_csv_list=doneList, k_method=s3r.arguments['cluster'])
 
     pass
 
