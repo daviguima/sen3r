@@ -254,30 +254,29 @@ class TsGenerator:
         valid_ndwi = (df['NDWI'] > -0.99) & (df['NDWI'] < 0.99)
         df = df[valid_mndwi & valid_ndwi]
 
-        #####################################
-        # Fix the indexing of the dataframe #
-        #####################################
-        df.reset_index(drop=True, inplace=True)
-
         ###########
         # Get SPM #
         ###########
         df['SPM'] = self.get_spm(band865=df['Oa17_reflectance:float'], band665=df['Oa08_reflectance:float'])
 
+        #####################################
+        # Fix the indexing of the dataframe #
+        #####################################
+        df.reset_index(drop=True, inplace=True)
+
         return df
 
     # manacapuru 0.2
     # negro 0.001
-    def update_csvs(self, csv_path, glint=12.0, savepath=False,
+    def update_csvs(self, csv_path, glint=20.0, savepath=False,
                     ir_min_threshold=False,
                     ir_max_threshold=0.2,
-                    max_aot=0.6,
-                    kde=False,
+                    max_aot=False,
                     GPT=False,
                     cams_val=False,
                     normalize=False):
         """
-        Given an CSV of pixels extracted using GPT(SNAP), filter the dataset and add some new columns.
+        Given an CSV of pixels extracted using SEN3R or GPT(SNAP), filter the dataset and add some new columns.
 
         Input:
             csv_path (string): complete path to the CSV to be updated.
@@ -296,6 +295,7 @@ class TsGenerator:
             raw_df = pd.read_csv(csv_path, sep='\t', skiprows=1)
         else:
             raw_df = pd.read_csv(csv_path, sep=',')
+
         self.glint = glint
         df = self.update_df(df=raw_df,
                             ir_min_threshold=ir_min_threshold,
@@ -303,49 +303,11 @@ class TsGenerator:
                             max_aot=max_aot,
                             cams_val=cams_val)
 
-        #########################
-        # KDE TEST FOR Oa08 RED #
-        #########################
-        if kde:
-            if (len(df['Oa08_reflectance:float'].unique()) < 2) and (len(df) < 4):
-                file_id_date_name = os.path.basename(csv_path).split('____')[1].split('_')[0]
-                print(f'Skipping KDE stats for lack of data @ {file_id_date_name}')
-                return 'KDE_fail', file_id_date_name
-
-            x = df['Oa08_reflectance:float'].copy()
-            pk, xray, yray, kde_res = self.kde_local_maxima(x)
-            xmean = np.mean(x)
-            kdemaxes = [m for m in xray[pk]]
-            kdemaxes.append(xmean)
-            drop_threshold = min(kdemaxes)
-            drop_threshold_upper_lim = drop_threshold + (0.1 * drop_threshold)
-            # drop_threshold_upper_lim = drop_threshold + (0.25 * drop_threshold)
-            # drop_threshold_lower_lim = drop_threshold - (0.25 * drop_threshold)
-
-            # Drop data outside bounds for drop_threshold:
-            indexNames = df[df['Oa08_reflectance:float'] > drop_threshold_upper_lim].index
-            df.drop(indexNames, inplace=True)
-            # indexNames = df[df['Oa08_reflectance:float'] < drop_threshold_lower_lim].index
-            # df.drop(indexNames, inplace=True)
-
-        #####################################
-        # Fix the indexing of the dataframe #
-        #####################################
-        df.reset_index(drop=True, inplace=True)
-
-        # Save V2
         if savepath:
             full_saving_path = os.path.join(savepath, os.path.basename(csv_path))
             print(f'Saving dataset: {full_saving_path}')
             df.to_csv(full_saving_path)
             return full_saving_path, df
-            # if len(df) > 3:
-            #     print(f'Saving dataset: {full_saving_path}')
-            #     df.to_csv(full_saving_path)
-            #     return full_saving_path, df
-            # else:
-            #     print(f'Skipping empty dataset: {os.path.basename(csv_path)}')
-            #     return full_saving_path, df
 
         else:
             return 'unsaved', df
@@ -503,7 +465,7 @@ class TsGenerator:
 
         return sorted_s3frbr_output_files
 
-    def generate_time_series_data(self, work_dir, sorted_list):
+    def generate_tms_data(self, work_dir, sorted_list):
         """
         # TODO: Write docstrings.
         """

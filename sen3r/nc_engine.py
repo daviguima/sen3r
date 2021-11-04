@@ -238,7 +238,7 @@ class ParallelBandExtract:
         result[file_n_band[1]] = [band[x, y] for x, y in zip(rr, cc)]
         return result
 
-    def parallel_get_bdata_in_nc(self, rr, cc, oaa, oza, saa, sza, lon, lat, nc_folder, wfr_files_p, parent_log=None):
+    def nc_2_df(self, rr, cc, oaa, oza, saa, sza, lon, lat, nc_folder, wfr_files_p, parent_log=None):
         """
         Given an input polygon and image, return a dataframe containing
         the data of the image that falls inside the polygon.

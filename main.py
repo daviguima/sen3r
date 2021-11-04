@@ -56,10 +56,10 @@ def main():
         s3r.log.info('------')
 
         if args['single']:  # Single mode
-            band_data, img_data, doneList = s3r.build_single_file()
+            band_data, img_data, doneList = s3r.build_single_csv()
 
         else:  # Default mode: several images
-            doneList = s3r.build_intermediary_files()
+            doneList = s3r.build_raw_csvs()
             print('cams_args:', s3r.arguments['cams'])
             if s3r.arguments["cams"]:
                 s3r.process_csv_list(raw_csv_list=doneList, use_cams=True, k_method=s3r.arguments['cluster'])

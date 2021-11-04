@@ -91,16 +91,16 @@ class Core:
 
         # IV) Extract the data from the NetCDF using the mask
         pbe = ParallelBandExtract()
-        df = pbe.parallel_get_bdata_in_nc(rr=img_data['rr'], cc=img_data['cc'],
-                                          lon=img_data['g_lon'],
-                                          lat=img_data['g_lat'],
-                                          oaa=img_data['OAA'],
-                                          oza=img_data['OZA'],
-                                          saa=img_data['SAA'],
-                                          sza=img_data['SZA'],
-                                          nc_folder=img_data['nc_file'],
-                                          wfr_files_p=dd.wfr_files_p,
-                                          parent_log=self.arguments['logfile'])
+        df = pbe.nc_2_df(rr=img_data['rr'], cc=img_data['cc'],
+                         lon=img_data['g_lon'],
+                         lat=img_data['g_lat'],
+                         oaa=img_data['OAA'],
+                         oza=img_data['OZA'],
+                         saa=img_data['SAA'],
+                         sza=img_data['SZA'],
+                         nc_folder=img_data['nc_file'],
+                         wfr_files_p=dd.wfr_files_p,
+                         parent_log=self.arguments['logfile'])
 
         if self.product.lower() == 'wfr':
             df = df.rename(columns=dd.wfr_vld_names)
@@ -120,7 +120,7 @@ class Core:
 
         return df, img_data
 
-    def build_intermediary_files(self):
+    def build_raw_csvs(self):
         """
         Parse the input arguments and return a path containing the output intermediary files.
         :return: l1_output_path Posixpath
@@ -155,12 +155,12 @@ class Core:
         self.log.info(outputstr)
         return done_csvs
 
-    def build_single_file(self, multiFileBridge=False):
+    def build_single_csv(self, multiFileBridge=False):
         """
         Parse the input arguments and return a path containing the output intermediary file.
         :return: l1_output_path Posixpath
         """
-        if not multiFileBridge:
+        if not multiFileBridge:  # TODO: build_single_csv should be called by build_raw_csvs for code recycling.
             self.log.info(f'Searching for WFR file inside: {self.INPUT_DIR}')
             self.log.info(f'Generating ancillary data folder: {self.CSV_N1}')
             Path(self.CSV_N1).mkdir(parents=True, exist_ok=True)
@@ -190,7 +190,6 @@ class Core:
         # irmax = 0.001 # Negro
         # irmax = 0.08 # Fonte Boa
         # irmin = 0.001 # Manacapuru
-        camscsvfolder = self.arguments['cams']
         tsgen = TsGenerator(parent_log=self.log)
 
         # GET SERIES SAVE PATH # TODO: refactor
@@ -315,7 +314,7 @@ class Core:
         todo = tsgen.build_list_from_subset(wdir)
 
         # Converting and saving the list of mean values into a XLS excel file.
-        data = tsgen.generate_time_series_data(wdir, todo)
+        data = tsgen.generate_tms_data(wdir, todo)
 
         series_df = pd.DataFrame(data=data)
         # Delete these row indexes from dataFrame
