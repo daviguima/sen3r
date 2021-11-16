@@ -382,7 +382,8 @@ class TsGenerator:
             df = df.drop(['latitude:double', 'longitude:double', 'ABSVLDPX'], axis=1)
 
             for colname in df:
-                result_dict[colname] = df[colname].mean(skipna=True)
+                # result_dict[colname] = df[colname].mean(skipna=True)
+                result_dict[colname] = df[colname].median(skipna=True)
 
             result_dict['median_IR'] = np.nanmedian(df['Oa17_reflectance:float'])
             result_dict['AbsVldPx'] = validpx

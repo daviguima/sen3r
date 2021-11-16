@@ -37,10 +37,11 @@ sen3r -h
 ```
 If all runs well, you should see:
 ```
-(sen3r) C:\yourpath\sen3r>sen3r -h
-usage: sen3r [-h] [-i INPUT] [-o OUT] [-r ROI] [-p PRODUCT] [-c CAMS] [-ng] [-np] [-s] [-v] [-l]
+(sen3r) D:\user_path\sen3r>sen3r -h
+usage: main.py [-h] [-i INPUT] [-o OUT] [-r ROI] [-p PRODUCT] [-c CAMS] [-k CLUSTER] [-ng] [-np] [-s] [-v]
 
-SEN3R (Sentinel-3 Reflectance Retrieval over Rivers) enables extraction of reflectance time series from Sentinel-3 L2 WFR images over water bodies.
+SEN3R (Sentinel-3 Reflectance Retrieval over Rivers) enables extraction of reflectance time series from Sentinel-3 L2 WFR images
+over water bodies.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -51,12 +52,12 @@ optional arguments:
   -p PRODUCT, --product PRODUCT
                         Currently only WFR is available.
   -c CAMS, --cams CAMS  Path to search for auxiliary CAMS file. Optional.
+  -k CLUSTER, --cluster CLUSTER
+                        Which method to use for clustering. Optional.
   -ng, --no-graphics    Do not generate graphical reports.
   -np, --no-pdf         Do not generate PDF report.
-  -s, --single          Single mode: run SEN3R over only one image instead of a whole directory.Optional.
+  -s, --single          Single mode: run SEN3R over only one image instead of a whole directory. Optional.
   -v, --version         Displays current package version.
-  -l, --silent          Run silently, stop printing to console.
-
 ```
 [!]
 For OS compatibility reasons the supported vector formats for `-r` are `.json` and `.geojson` but there are

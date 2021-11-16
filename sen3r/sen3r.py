@@ -177,7 +177,7 @@ class Core:
         band_data.to_csv(out_dir, index=False)
         return band_data, img_data, [out_dir]
 
-    def process_csv_list(self, raw_csv_list, irmax=0.2, use_cams=False, do_clustering=True, k_method='M5'):
+    def process_csv_list(self, raw_csv_list, irmax=0.2, use_cams=False, do_clustering=True, k_method='M4'):
         """
 
         :param k_method:
@@ -225,9 +225,10 @@ class Core:
 
             figdate = os.path.basename(img).split('____')[1].split('_')[0]
             figtitl = os.path.basename(out_dir) + '_' + figdate
-            savpt_sctr = os.path.join(img_dir, figdate + '_0.png')
-            savpt_rrs = os.path.join(img_dir, figdate + '_1.png')
-            savpt_k = os.path.join(img_dir, figdate + '_2.png')
+            savpt_raw_sctr = os.path.join(img_dir, figdate + '_0.png')
+            savpt_sctr = os.path.join(img_dir, figdate + '_1.png')
+            savpt_rrs = os.path.join(img_dir, figdate + '_2.png')
+            savpt_k = os.path.join(img_dir, figdate + '_3.png')
 
             if use_cams:
                 # Find the equivalent observation day in CAMS
@@ -241,6 +242,21 @@ class Core:
 
             else:
                 cams_val = False
+
+            # read and plot the
+            rawDf = pd.read_csv(img, sep=',')
+            tsgen.plot_sidebyside_sktr(x1_data=rawDf['Oa08_reflectance:float'],
+                                       y1_data=rawDf['Oa17_reflectance:float'],
+                                       x2_data=rawDf['Oa08_reflectance:float'],
+                                       y2_data=rawDf['Oa17_reflectance:float'],
+                                       x_lbl='RED: Oa08 (665nm)',
+                                       y_lbl='NIR: Oa17 (865nm)',
+                                       c1_data=rawDf['A865:float'],
+                                       c1_lbl='Aer. Angstrom Expoent (A865)',
+                                       c2_data=rawDf['T865:float'],
+                                       c2_lbl='Aer. Optical Thickness (T865)',
+                                       title=f'RAW {os.path.basename(out_dir)} WFR {figdate} RED:Oa08(665nm) x NIR:Oa17(865nm)',
+                                       savepathname=savpt_raw_sctr)
 
             # reprocessing the raw CSVs and removing reflectances above the threshold in IR.
             try:
@@ -284,10 +300,10 @@ class Core:
                     # Delete rows from the other clusters:
                     indexNames = df[df['cluster'] != k].index
                     df.drop(indexNames, inplace=True)
+                    # TODO : test cluster with the smallest T865 value as a primary/secondary rule.
                 else:
                     df = bkpdf.copy()
 
-            # generate plot v3 --------------------------
             tsgen.plot_sidebyside_sktr(x1_data=df['Oa08_reflectance:float'],
                                        y1_data=df['Oa17_reflectance:float'],
                                        x2_data=df['Oa08_reflectance:float'],
