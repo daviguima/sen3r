@@ -4,4 +4,6 @@ pandas
 Pillow
 netcdf4
 openpyxl
+scikit-learn
 scikit-image
+importlib_metadata
