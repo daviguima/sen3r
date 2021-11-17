@@ -326,6 +326,16 @@ class Utils:
         idx = (np.abs(array - value)).argmin()
         return idx
 
+    def get_available_cores(self):
+        cpu_count = os.cpu_count() - 1
+        if cpu_count <= 0:
+            self.log.info(f'Invalid number of CPU cores available: {os.cpu_count()}.')
+            sys.exit(1)
+        elif cpu_count > 61:
+            cpu_count = 61
+
+        return cpu_count
+
     @staticmethod
     def pil_grid(images, max_horiz=np.iinfo(int).max):
         """

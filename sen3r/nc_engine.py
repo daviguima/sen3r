@@ -207,7 +207,8 @@ class ParallelCoord:
 
         # for future reference
         # https://stackoverflow.com/questions/6832554/multiprocessing-how-do-i-share-a-dict-among-multiple-processes
-        with concurrent.futures.ProcessPoolExecutor(max_workers=os.cpu_count() - 1) as executor:
+        cores = utils.get_available_cores()
+        with concurrent.futures.ProcessPoolExecutor(max_workers=cores) as executor:
             try:
                 result = list(executor.map(self.vect_dist_subtraction, coord_vect_pairs, [grid]*len(coord_vect_pairs)))
 
@@ -258,13 +259,9 @@ class ParallelBandExtract:
         df['SAA'] = [saa[x, y] for x, y in zip(df['x'], df['y'])]
         df['SZA'] = [sza[x, y] for x, y in zip(df['x'], df['y'])]
 
-        # Test the number of cores available, minimum requires 2.
-        if (os.cpu_count() - 1) <= 0:
-            self.log.info(f'Invalid number of CPU cores available: {os.cpu_count()}.')
-            sys.exit(1)
-
+        cores = utils.get_available_cores()
         # Populate the initial DF with the output from the other bands
-        with concurrent.futures.ProcessPoolExecutor(max_workers=os.cpu_count() - 1) as executor:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=cores) as executor:
             try:
                 list_of_bands = list(executor.map(
                     self._get_band_in_nc, wfr_files_p,
