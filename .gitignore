@@ -1,6 +1,8 @@
-*.png
-*.xlsx
-.env
 .idea/
+.ipynb_checkpoints/
+.venv
+.env
 __pycache__/
-notebooks/
+dist/
+build/
+*.egg-info/
